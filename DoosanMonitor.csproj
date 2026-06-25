@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>DoosanMonitor</RootNamespace>
+    <AssemblyName>DoosanMonitor</AssemblyName>
+    <!-- DRFLWin64.dll(네이티브 x64)을 P/Invoke 하므로 x64 고정. AnyCPU 로 두면 -->
+    <!-- 32비트 프로세스로 떠 BadImageFormatException 이 난다. -->
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- NuGet에서 최신 안정 버전(NModbus 3.x)으로 복원하세요. -->
+    <PackageReference Include="NModbus" Version="3.0.81" />
+  </ItemGroup>
+
+  <!-- tools/ 의 보조 콘솔(DrflProbe)은 앱 빌드에 포함하지 않는다. -->
+  <ItemGroup>
+    <Compile Remove="tools\**\*.cs" />
+    <Page Remove="tools\**\*.xaml" />
+  </ItemGroup>
+
+  <!-- DRFL 네이티브 런타임(x64): 빌드 시 출력 폴더(exe 옆)로 자동 복사.
+       DRFLWin64.dll 은 PocoFoundation64/PocoNet64 에 의존하므로 셋 다 필요.
+       libs/x64/ 의 DLL 은 DoosanRobotics/API-DRFL(library/Windows/64bits)에서 받은 것. -->
+  <ItemGroup>
+    <None Include="libs\x64\*.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>%(Filename)%(Extension)</Link>
+    </None>
+  </ItemGroup>
+
+</Project>

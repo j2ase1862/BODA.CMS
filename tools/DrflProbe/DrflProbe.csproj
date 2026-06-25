@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>DrflProbe</RootNamespace>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NModbus" Version="3.0.81" />
+  </ItemGroup>
+
+  <!-- 앱이 실제로 쓰는 interop/서비스 소스를 그대로 링크해서 검증한다(복제 아님). -->
+  <ItemGroup>
+    <Compile Include="..\..\Services\Drfl\DrflStructs.cs" Link="linked\DrflStructs.cs" />
+    <Compile Include="..\..\Services\Drfl\DrflInterop.cs" Link="linked\DrflInterop.cs" />
+    <Compile Include="..\..\Services\DrflMonitorService.cs" Link="linked\DrflMonitorService.cs" />
+    <Compile Include="..\..\Models\MonitoringSample.cs" Link="linked\MonitoringSample.cs" />
+  </ItemGroup>
+
+  <!-- DRFL 네이티브 런타임 DLL 자동 복사(메인과 동일 번들). -->
+  <ItemGroup>
+    <None Include="..\..\libs\x64\*.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>%(Filename)%(Extension)</Link>
+    </None>
+  </ItemGroup>
+
+</Project>

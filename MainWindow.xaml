@@ -1,0 +1,159 @@
+<Window x:Class="DoosanMonitor.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:DoosanMonitor.ViewModels"
+        Title="두산 로봇 모니터 — 연결 테스트"
+        Height="800" Width="600"
+        WindowStartupLocation="CenterScreen"
+        FontFamily="Segoe UI" FontSize="13" Background="#FFF5F6F8">
+
+    <Window.DataContext>
+        <vm:MainViewModel />
+    </Window.DataContext>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- 연결 설정 카드 -->
+        <Border Grid.Row="0" Background="White" CornerRadius="8" Padding="16"
+                BorderBrush="#FFE2E5EA" BorderThickness="1">
+            <Border.Effect>
+                <DropShadowEffect Color="#22000000" BlurRadius="10" ShadowDepth="1" />
+            </Border.Effect>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="IP 주소"
+                           VerticalAlignment="Center" Margin="0,0,12,8" Foreground="#FF333A45" />
+                <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,8" Padding="6,4"
+                         VerticalContentAlignment="Center"
+                         Text="{Binding IpAddress, UpdateSourceTrigger=PropertyChanged}" />
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="포트"
+                           VerticalAlignment="Center" Margin="0,0,12,8" Foreground="#FF333A45" />
+                <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,8" Padding="6,4"
+                         VerticalContentAlignment="Center"
+                         Text="{Binding Port, UpdateSourceTrigger=PropertyChanged}" />
+
+                <Button Grid.Row="0" Grid.Column="2" Grid.RowSpan="2"
+                        Content="{Binding ConnectButtonText}"
+                        Command="{Binding ConnectCommand}"
+                        Width="110" Margin="12,0,0,8" Padding="0,6"
+                        VerticalAlignment="Stretch"
+                        Background="#FF2D6CDF" Foreground="White" BorderThickness="0"
+                        Cursor="Hand" FontWeight="SemiBold" />
+
+                <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3"
+                            Orientation="Horizontal" Margin="0,4,0,0">
+                    <Ellipse Width="10" Height="10" Fill="{Binding StatusBrush}"
+                             VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <TextBlock Text="{Binding StatusMessage}" Foreground="{Binding StatusBrush}"
+                               FontWeight="SemiBold" VerticalAlignment="Center" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Modbus 텔레메트리 카드 (Phase 1 / Basic) -->
+        <Border Grid.Row="1" Background="White" CornerRadius="8" Padding="16"
+                BorderBrush="#FFE2E5EA" BorderThickness="1" Margin="0,14,0,0">
+            <Border.Effect>
+                <DropShadowEffect Color="#22000000" BlurRadius="10" ShadowDepth="1" />
+            </Border.Effect>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Ellipse Width="10" Height="10" Fill="{Binding ModbusMonBrush}"
+                             VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <TextBlock Text="{Binding ModbusMonStatus}" Foreground="{Binding ModbusMonBrush}"
+                               FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Text="  (포트 502 · FC03 · unit 1)" Foreground="#FF8A93A0"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+
+                <Button Grid.Row="0" Grid.Column="1"
+                        Content="{Binding ModbusMonButtonText}"
+                        Command="{Binding ModbusMonitorCommand}"
+                        Width="170" Padding="0,6"
+                        Background="#FF2D6CDF" Foreground="White" BorderThickness="0"
+                        Cursor="Hand" FontWeight="SemiBold" />
+
+                <Border Grid.Row="1" Grid.ColumnSpan="2" Margin="0,12,0,0"
+                        Background="#FF1B1F24" CornerRadius="6" Padding="10">
+                    <TextBlock Text="{Binding ModbusReadout}" FontFamily="Consolas" FontSize="12"
+                               Foreground="#FFD6E1EC" />
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- DRFL 패시브 모니터링 카드 -->
+        <Border Grid.Row="2" Background="White" CornerRadius="8" Padding="16"
+                BorderBrush="#FFE2E5EA" BorderThickness="1" Margin="0,14,0,0">
+            <Border.Effect>
+                <DropShadowEffect Color="#22000000" BlurRadius="10" ShadowDepth="1" />
+            </Border.Effect>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Ellipse Width="10" Height="10" Fill="{Binding DrflBrush}"
+                             VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <TextBlock Text="{Binding DrflStatus}" Foreground="{Binding DrflBrush}"
+                               FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Text="  (포트 12345 · 패시브 · 비개입)" Foreground="#FF8A93A0"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+
+                <Button Grid.Row="0" Grid.Column="1"
+                        Content="{Binding DrflButtonText}"
+                        Command="{Binding DrflCommand}"
+                        Width="150" Padding="0,6"
+                        Background="#FF1E9E6A" Foreground="White" BorderThickness="0"
+                        Cursor="Hand" FontWeight="SemiBold" />
+
+                <Border Grid.Row="1" Grid.ColumnSpan="2" Margin="0,12,0,0"
+                        Background="#FF1B1F24" CornerRadius="6" Padding="10">
+                    <TextBlock Text="{Binding AxisReadout}" FontFamily="Consolas" FontSize="12"
+                               Foreground="#FFD6E1EC" />
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- 로그 -->
+        <Border Grid.Row="3" Background="White" CornerRadius="8" Padding="2"
+                BorderBrush="#FFE2E5EA" BorderThickness="1" Margin="0,14,0,0">
+            <TextBox Text="{Binding LogText, Mode=OneWay}" IsReadOnly="True"
+                     FontFamily="Consolas" FontSize="12" Foreground="#FF2B3138"
+                     Background="Transparent" BorderThickness="0" Padding="10"
+                     VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" />
+        </Border>
+    </Grid>
+</Window>

@@ -1,0 +1,13 @@
+# 빌드 산출물
+[Bb]in/
+[Oo]bj/
+.vs/
+*.user
+
+# 도구 콘솔 빌드 산출물 / 런타임 스냅샷
+tools/**/bin/
+tools/**/obj/
+snapshot.txt
+
+# 기타
+*.log
