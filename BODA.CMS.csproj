@@ -15,31 +15,28 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- NuGet에서 최신 안정 버전(NModbus 3.x)으로 복원하세요. -->
-    <PackageReference Include="NModbus" Version="3.0.81" />
     <!-- 라이브 차트 (카드별 스트립 차트). -->
     <PackageReference Include="ScottPlot.WPF" Version="5.0.55" />
   </ItemGroup>
 
-  <!-- 유닛테스트가 드라이버 내부 매핑 함수(internal)에 접근하기 위한 선언. -->
+  <!-- P1에서 물리 분리된 모듈들 — 앱은 조립(컴포지션 루트)과 표현만 담당한다.
+       NModbus·DRFL 네이티브 DLL은 각 모듈에서 전이(transitive)로 온다. -->
+  <ItemGroup>
+    <ProjectReference Include="Core\BODA.CMS.Core.csproj" />
+    <ProjectReference Include="Comms\BODA.CMS.Comms.csproj" />
+    <ProjectReference Include="Drivers\Doosan\BODA.CMS.Drivers.Doosan.csproj" />
+    <ProjectReference Include="Drivers\Simulated\BODA.CMS.Drivers.Simulated.csproj" />
+  </ItemGroup>
+
+  <!-- 유닛테스트가 앱 내부(TelemetrySourceViewModel 등)에 접근하기 위한 선언. -->
   <ItemGroup>
     <InternalsVisibleTo Include="BODA.CMS.Tests" />
   </ItemGroup>
 
-  <!-- tools/ 의 보조 콘솔(DrflProbe)과 tests/ 는 앱 빌드에 포함하지 않는다(별도 프로젝트). -->
+  <!-- 하위 프로젝트 폴더·보조 콘솔·테스트는 앱 글로빙에서 제외(각자 별도 csproj). -->
   <ItemGroup>
-    <Compile Remove="tools\**\*.cs;tests\**\*.cs" />
+    <Compile Remove="Core\**\*.cs;Comms\**\*.cs;Drivers\**\*.cs;Collector\**\*.cs;tools\**\*.cs;tests\**\*.cs" />
     <Page Remove="tools\**\*.xaml" />
-  </ItemGroup>
-
-  <!-- DRFL 네이티브 런타임(x64): 빌드 시 출력 폴더(exe 옆)로 자동 복사.
-       DRFLWin64.dll 은 PocoFoundation64/PocoNet64 에 의존하므로 셋 다 필요.
-       libs/x64/ 의 DLL 은 DoosanRobotics/API-DRFL(library/Windows/64bits)에서 받은 것. -->
-  <ItemGroup>
-    <None Include="libs\x64\*.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>%(Filename)%(Extension)</Link>
-    </None>
   </ItemGroup>
 
 </Project>

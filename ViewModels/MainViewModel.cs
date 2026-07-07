@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Text;
@@ -7,7 +7,7 @@ using System.Windows;
 using System.Windows.Media;
 using BODA.CMS.Core.Telemetry;
 using BODA.CMS.Mvvm;
-using BODA.CMS.Services;
+using BODA.CMS.Comms;
 
 namespace BODA.CMS.ViewModels
 {

@@ -14,20 +14,10 @@
     <PackageReference Include="NModbus" Version="3.0.81" />
   </ItemGroup>
 
-  <!-- 앱이 실제로 쓰는 interop/서비스 소스를 그대로 링크해서 검증한다(복제 아님). -->
+  <!-- 앱이 실제로 쓰는 드라이버 모듈을 그대로 참조해서 검증한다(P1 물리 분리 후).
+       DRFL 네이티브 DLL도 모듈에서 전이 복사된다. -->
   <ItemGroup>
-    <Compile Include="..\..\Drivers\Doosan\Drfl\DrflStructs.cs" Link="linked\DrflStructs.cs" />
-    <Compile Include="..\..\Drivers\Doosan\Drfl\DrflInterop.cs" Link="linked\DrflInterop.cs" />
-    <Compile Include="..\..\Drivers\Doosan\DrflMonitorService.cs" Link="linked\DrflMonitorService.cs" />
-    <Compile Include="..\..\Drivers\Doosan\MonitoringSample.cs" Link="linked\MonitoringSample.cs" />
-  </ItemGroup>
-
-  <!-- DRFL 네이티브 런타임 DLL 자동 복사(메인과 동일 번들). -->
-  <ItemGroup>
-    <None Include="..\..\libs\x64\*.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>%(Filename)%(Extension)</Link>
-    </None>
+    <ProjectReference Include="..\..\Drivers\Doosan\BODA.CMS.Drivers.Doosan.csproj" />
   </ItemGroup>
 
 </Project>

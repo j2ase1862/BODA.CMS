@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- 두산 벤더 드라이버 모듈 — Modbus 맵·스케일, DRFL P/Invoke, 공용 프레임 변환 (ROADMAP §2).
+       타깃은 net8.0이지만 DRFL 채널은 Windows 네이티브 DLL(DRFLWin64) 필요 — 런타임은 win-x64 전제. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>BODA.CMS.Drivers.Doosan</RootNamespace>
+    <AssemblyName>BODA.CMS.Drivers.Doosan</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Core\BODA.CMS.Core.csproj" />
+    <ProjectReference Include="..\..\Comms\BODA.CMS.Comms.csproj" />
+  </ItemGroup>
+
+  <!-- 유닛테스트가 내부 매핑 함수(ToFrame 등)에 접근하기 위한 선언. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="BODA.CMS.Tests" />
+  </ItemGroup>
+
+  <!-- DRFL 네이티브 런타임(x64): 이 모듈을 참조하는 실행 프로젝트의 출력 폴더로 전이 복사된다.
+       DRFLWin64.dll 은 PocoFoundation64/PocoNet64 에 의존하므로 셋 다 필요.
+       libs/x64/ 의 DLL 은 DoosanRobotics/API-DRFL(library/Windows/64bits)에서 받은 것. -->
+  <ItemGroup>
+    <None Include="..\..\libs\x64\*.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>%(Filename)%(Extension)</Link>
+    </None>
+  </ItemGroup>
+
+</Project>

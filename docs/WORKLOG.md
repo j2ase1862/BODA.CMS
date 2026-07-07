@@ -4,6 +4,32 @@
 
 ---
 
+## 2026-07-07 (2) — Phase P1: 프로젝트 물리 분리 + Collector + TimescaleDB 파이프라인
+
+### 요약
+- P0 계약 위에 **P1 코드 완료**: 모듈 물리 분리, headless 수집기, 재연결 규약, TimescaleDB 스키마/적재.
+- 시뮬레이터 2채널로 end-to-end 검증(dry-run): 펌프 → 버퍼 → 배치 플러시 정상. **실 DB 적재 검증만 남음**(개발 PC에 PostgreSQL 부재).
+
+### 작업 내용
+- **물리 분리**: `Core`(net8.0) / `Comms`(NModbus 헬퍼 — `ModbusConnectionService` 이동, 네임스페이스 `BODA.CMS.Comms`) / `Drivers.Doosan`(DRFL 네이티브 DLL 전이 복사 소유) / `Drivers.Simulated` / 루트 WPF는 참조만. DrflProbe도 링크 컴파일 → 모듈 참조로 전환. **windows 타깃은 WPF뿐** — §7 오픈 퀘스천 해소.
+- **재연결 시맨틱**(계약 문서화 + 드라이버 수정):
+  - 규약: Faulted/해제 후 `ConnectAsync` 재호출 가능, 이전 세션 잔재는 드라이버가 정리.
+  - 두산 Modbus: 연속 읽기 오류 20회 → Faulted(TcpClient.Connected stale 대응), `ownsConnection` 모드(수집기용 — 해제 시 세션 닫아 재연결 시 새 소켓).
+  - 두산 DRFL: **Faulted 후 재연결 불가 버그 수정** — 내부 `_connected` 플래그 잔재로 `Connect()`가 조용히 no-op 되던 것을 `ConnectAsync` 진입 시 선정리로 해결.
+- **Collector** (`Collector/`, Worker SDK): `appsettings.json Collector:Robots[]`(RobotId/Vendor/Host/Port/Channels 필터) → 벤더 카탈로그(Program.cs 컴포지션 루트) → 채널별 펌프(지수 백오프 1s→30s) → `FrameBuffer`(bounded 100k, 포화 시 DropOldest — 수집이 저장을 안 기다림) → `StorageWorker`(BatchSize/FlushInterval 배치).
+- **저장소**: `TimescaleFrameStore` — `telemetry_frames` 단일 테이블(벤더별 테이블 금지), 태그 컬럼 + 축별 `real[]` + `vendor_raw jsonb`, 바이너리 COPY. `create_hypertable` 시도 후 확장 없으면 일반 테이블 폴백. `Storage:Enabled=false` → `LogFrameStore` dry-run.
+- **테스트 +4** (총 22): 프레임→행 매핑(널 규약·jsonb 왕복), 백오프(지수·상한·음수 안전).
+
+### 검증
+- 전체 솔루션(7프로젝트) 빌드 경고 0, 테스트 22/22.
+- Collector 12초 dry-run: `sim-01/basic` ~10Hz, `sim-01/pro` ~65Hz 수집·플러시 확인. (pro가 100Hz 미달인 건 시뮬레이터의 `Task.Delay(10ms)`가 Windows 타이머 해상도(15.6ms)에 걸리기 때문 — 실 드라이버는 콜백 기반이라 무관.)
+
+### 다음 작업
+1. 실 TimescaleDB 인스턴스 확보(도커 or 기존 BODA 스택) → `Storage:Enabled=true` 적재 검증.
+2. Phase P2 — CBM(기준선 학습·임계값 알림) 착수 가능(시뮬레이터로 개발).
+
+---
+
 ## 2026-07-07 — Phase P0: 드라이버 추상화 리팩터링 (멀티벤더 계약 확정)
 
 ### 요약

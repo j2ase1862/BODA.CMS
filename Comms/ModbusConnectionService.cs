@@ -1,10 +1,10 @@
-using System;
+﻿using System;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using NModbus;
 
-namespace BODA.CMS.Services
+namespace BODA.CMS.Comms
 {
     /// <summary>
     /// Modbus TCP 연결을 관리하는 서비스.

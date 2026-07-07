@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- 텔레메트리 계약 + 등급 판정 — 벤더/플랫폼 의존성 없음 (ROADMAP §2 모듈 표).
+       net8.0 중립 유지: Windows 의존(P/Invoke·WPF)은 드라이버·앱 계층에서 끝난다. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>BODA.CMS.Core</RootNamespace>
+    <AssemblyName>BODA.CMS.Core</AssemblyName>
+  </PropertyGroup>
+
+</Project>

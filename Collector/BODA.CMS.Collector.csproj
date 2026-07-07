@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <!-- headless 수집 서비스 (ROADMAP §4 P1) — 구성 파일 기반 다중 로봇 수집,
+       재연결 백오프, 버퍼링/배치 TimescaleDB 적재. UI 없음(Windows 서비스/콘솔로 구동).
+       벤더 타입은 Program.cs(컴포지션 루트) 카탈로그 등록에서만 등장한다. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>BODA.CMS.Collector</RootNamespace>
+    <AssemblyName>BODA.CMS.Collector</AssemblyName>
+    <UserSecretsId>boda-cms-collector</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Npgsql" Version="8.0.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Core\BODA.CMS.Core.csproj" />
+    <ProjectReference Include="..\Comms\BODA.CMS.Comms.csproj" />
+    <ProjectReference Include="..\Drivers\Doosan\BODA.CMS.Drivers.Doosan.csproj" />
+    <ProjectReference Include="..\Drivers\Simulated\BODA.CMS.Drivers.Simulated.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BODA.CMS.Tests" />
+  </ItemGroup>
+
+</Project>

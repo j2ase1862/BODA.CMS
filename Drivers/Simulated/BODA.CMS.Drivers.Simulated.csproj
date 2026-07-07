@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- 가상 로봇 드라이버 — 하드웨어 없이 파이프라인·UI 구동 + 계약 준수 시연용. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>BODA.CMS.Drivers.Simulated</RootNamespace>
+    <AssemblyName>BODA.CMS.Drivers.Simulated</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Core\BODA.CMS.Core.csproj" />
+  </ItemGroup>
+
+</Project>

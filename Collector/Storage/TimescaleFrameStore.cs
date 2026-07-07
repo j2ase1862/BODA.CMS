@@ -1,0 +1,109 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Npgsql;
+using NpgsqlTypes;
+
+namespace BODA.CMS.Collector.Storage
+{
+    /// <summary>
+    /// TimescaleDB(PostgreSQL) 적재 — 공용 프레임 기준 단일 hypertable, 벤더/채널은 태그 컬럼
+    /// (ROADMAP §4 P1: "벤더별 테이블 금지, 태그로 구분"). 배치는 바이너리 COPY로 적재.
+    /// TimescaleDB 확장이 없으면 일반 테이블 + 인덱스로 동작(개발 환경 배려).
+    /// </summary>
+    public sealed class TimescaleFrameStore : IFrameStore
+    {
+        private const string CreateTableSql = """
+            CREATE TABLE IF NOT EXISTS telemetry_frames (
+                time                timestamptz NOT NULL,
+                robot_id            text        NOT NULL,
+                vendor              text        NOT NULL,
+                channel             text        NOT NULL,
+                controller_clock    double precision,
+                position_deg        real[]      NOT NULL,
+                velocity_degs       real[],
+                torque_nm           real[],
+                model_torque_nm     real[],
+                external_torque_nm  real[],
+                current_a           real[],
+                temperature_c       real[],
+                vendor_raw          jsonb
+            );
+            """;
+
+        private const string CopySql = """
+            COPY telemetry_frames
+                (time, robot_id, vendor, channel, controller_clock,
+                 position_deg, velocity_degs, torque_nm, model_torque_nm,
+                 external_torque_nm, current_a, temperature_c, vendor_raw)
+            FROM STDIN (FORMAT BINARY)
+            """;
+
+        private readonly NpgsqlDataSource _dataSource;
+        private readonly ILogger<TimescaleFrameStore> _logger;
+
+        public TimescaleFrameStore(IOptions<CollectorOptions> options, ILogger<TimescaleFrameStore> logger)
+        {
+            _dataSource = NpgsqlDataSource.Create(options.Value.Storage.ConnectionString);
+            _logger = logger;
+        }
+
+        public async Task InitializeAsync(CancellationToken ct)
+        {
+            await using var conn = await _dataSource.OpenConnectionAsync(ct);
+
+            await using (var cmd = new NpgsqlCommand(CreateTableSql, conn))
+                await cmd.ExecuteNonQueryAsync(ct);
+
+            // TimescaleDB가 설치된 서버라면 hypertable로 승격 — 없으면 일반 테이블로 계속.
+            try
+            {
+                await using var hyper = new NpgsqlCommand(
+                    "SELECT create_hypertable('telemetry_frames', 'time', if_not_exists => TRUE);", conn);
+                await hyper.ExecuteNonQueryAsync(ct);
+                _logger.LogInformation("telemetry_frames hypertable 준비 완료 (TimescaleDB).");
+            }
+            catch (PostgresException ex) when (ex.SqlState == "42883") // create_hypertable 함수 없음
+            {
+                _logger.LogWarning("TimescaleDB 확장이 없어 일반 테이블로 동작합니다 (성능·보존정책 제한).");
+            }
+
+            await using (var idx = new NpgsqlCommand(
+                "CREATE INDEX IF NOT EXISTS idx_telemetry_robot_time ON telemetry_frames (robot_id, time DESC);", conn))
+                await idx.ExecuteNonQueryAsync(ct);
+        }
+
+        public async Task WriteBatchAsync(IReadOnlyList<TelemetryRecord> batch, CancellationToken ct)
+        {
+            await using var conn = await _dataSource.OpenConnectionAsync(ct);
+            await using var writer = await conn.BeginBinaryImportAsync(CopySql, ct);
+
+            foreach (TelemetryRecord record in batch)
+            {
+                TelemetryRow row = TelemetryRow.FromRecord(record);
+
+                await writer.StartRowAsync(ct);
+                await writer.WriteAsync(row.TimeUtc, NpgsqlDbType.TimestampTz, ct);
+                await writer.WriteAsync(row.RobotId, NpgsqlDbType.Text, ct);
+                await writer.WriteAsync(row.Vendor, NpgsqlDbType.Text, ct);
+                await writer.WriteAsync(row.Channel, NpgsqlDbType.Text, ct);
+                await WriteNullableAsync(writer, row.ControllerClock, NpgsqlDbType.Double, ct);
+                await writer.WriteAsync(row.PositionDeg, NpgsqlDbType.Array | NpgsqlDbType.Real, ct);
+                await WriteNullableAsync(writer, row.VelocityDegS, NpgsqlDbType.Array | NpgsqlDbType.Real, ct);
+                await WriteNullableAsync(writer, row.TorqueNm, NpgsqlDbType.Array | NpgsqlDbType.Real, ct);
+                await WriteNullableAsync(writer, row.ModelTorqueNm, NpgsqlDbType.Array | NpgsqlDbType.Real, ct);
+                await WriteNullableAsync(writer, row.ExternalTorqueNm, NpgsqlDbType.Array | NpgsqlDbType.Real, ct);
+                await WriteNullableAsync(writer, row.CurrentA, NpgsqlDbType.Array | NpgsqlDbType.Real, ct);
+                await WriteNullableAsync(writer, row.TemperatureC, NpgsqlDbType.Array | NpgsqlDbType.Real, ct);
+                await WriteNullableAsync(writer, row.VendorRawJson, NpgsqlDbType.Jsonb, ct);
+            }
+
+            await writer.CompleteAsync(ct);
+        }
+
+        private static async Task WriteNullableAsync<T>(NpgsqlBinaryImporter writer, T? value, NpgsqlDbType type, CancellationToken ct)
+        {
+            if (value is null) await writer.WriteNullAsync(ct);
+            else await writer.WriteAsync(value, type, ct);
+        }
+    }
+}

@@ -29,7 +29,12 @@ namespace BODA.CMS.Core.Telemetry
         /// <summary>로그성 통지(컨트롤러 버전, 로봇 상태 변화, 일시적 읽기 오류 등). 사람이 읽는 문자열.</summary>
         event EventHandler<string>? Notification;
 
-        /// <summary>접속 + 수신 시작. 실패 시 예외를 던지고 상태는 Disconnected/Faulted로 남는다.</summary>
+        /// <summary>
+        /// 접속 + 수신 시작. 실패 시 예외를 던지고 상태는 Disconnected/Faulted로 남는다.
+        /// <b>재연결 시맨틱(P1)</b>: <see cref="DisconnectAsync"/> 이후 또는 <see cref="TelemetrySourceState.Faulted"/>
+        /// 상태에서 다시 호출할 수 있어야 한다 — 수집기는 Faulted 감지 시 백오프 후 이 메서드로 재접속한다.
+        /// 드라이버는 호출 시 이전 세션 잔재(핸들·루프)를 스스로 정리할 책임이 있다.
+        /// </summary>
         Task ConnectAsync(RobotEndpoint endpoint, CancellationToken ct = default);
 
         /// <summary>수신 중지 + 접속 해제(정상 종료). 미연결이면 no-op.</summary>

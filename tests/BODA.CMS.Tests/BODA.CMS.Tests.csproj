@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\BODA.CMS.csproj" />
+    <ProjectReference Include="..\..\Collector\BODA.CMS.Collector.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- 벤더 중립 프로토콜 헬퍼(Modbus TCP 세션 등) — 여러 벤더 드라이버가 공유.
+       벤더 특화 지식(레지스터 주소·스케일)은 여기 두지 말 것 — 그건 Drivers.{Vendor} 소관. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>BODA.CMS.Comms</RootNamespace>
+    <AssemblyName>BODA.CMS.Comms</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NModbus" Version="3.0.81" />
+  </ItemGroup>
+
+</Project>

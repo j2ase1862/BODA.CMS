@@ -52,13 +52,14 @@ WPF 모니터링 UI (+ 웹 대시보드 + 향후 3D 트윈)
 | 모듈 | 책임 | 벤더 의존 |
 |---|---|---|
 | `BODA.CMS.Core` | 텔레메트리 계약(`IRobotTelemetrySource`, `RobotTelemetryFrame`, `RobotCapabilities`), 정규화 규약, 등급 판정 | 없음 |
+| `BODA.CMS.Comms` | 벤더 중립 프로토콜 헬퍼(Modbus TCP 세션 유지 등) — 여러 드라이버가 공유 | 없음 |
 | `BODA.CMS.Drivers.Doosan` | Modbus 맵 + 스케일, DRFL P/Invoke, 두산 프레임 → 공용 프레임 변환 | 두산 |
 | `BODA.CMS.Drivers.{Vendor}` | (벤더 추가 시) 해당 벤더 채널 + 변환 | 해당 벤더 |
 | `BODA.CMS.Collector` | headless 수집 서비스: 드라이버 로드, 버퍼링, TimescaleDB 적재, 재연결 | 없음 |
 | `BODA.CMS.Analytics` | CBM 기준선·임계값, ONNX 추론 | 없음 |
 | `BODA.CMS` (WPF) | 모니터링 UI. Collector/WebAPI를 구독하는 뷰어 | 없음 |
 
-> 현재는 단일 `BODA.CMS.csproj` 안에서 폴더·네임스페이스로 분리돼 있음(`Core/Telemetry/`, `Drivers/Doosan/` — P0 완료). 프로젝트 물리 분리는 P1(수집기 분리)에서 수행. **프로젝트 물리 분리보다 인터페이스 계약이 먼저다** — 계약이 섰으므로 물리 분리는 언제든 가능. 벤더 드라이버 타입은 컴포지션 루트(`MainWindow.xaml.cs`)에서만 등장한다.
+> **물리 분리 완료(P1)**: `BODA.CMS.Core`(net8.0) / `BODA.CMS.Comms`(벤더 중립 Modbus 헬퍼, NModbus) / `BODA.CMS.Drivers.Doosan` / `BODA.CMS.Drivers.Simulated` / `BODA.CMS.Collector`(Worker) / `BODA.CMS`(WPF, net8.0-windows) / `tests`. Windows 의존은 WPF 앱뿐 — 코어·드라이버·수집기는 net8.0 중립. 벤더 드라이버 타입은 컴포지션 루트(`MainWindow.xaml.cs`, Collector `Program.cs`)에서만 등장한다.
 
 **드라이버 계약 (P0에서 확정 — `Core/Telemetry/` 구현이 원본, 이 블록은 요약)**
 
@@ -153,11 +154,14 @@ public sealed class RobotCapabilities
 - [x] 등급 판정: `ProductTierEvaluator`(capability → None/Basic/Pro) + 유닛테스트 13건 (`tests/BODA.CMS.Tests`, xUnit — 두산 Modbus=Basic·DRFL=Pro 잠금 포함)
 - [x] `MonitoringSample`은 `Drivers/Doosan/` 내부 타입으로 강등 (DRFL 콜백 구조체의 1차 스냅샷 — DrflProbe 도구가 공유)
 
-### Phase P1 — 데이터 파이프라인 & 저장 + 수집기 분리 ← **다음 작업**
-- [ ] TimescaleDB 스키마 설계(hypertable): 공용 프레임 기준 — 벤더/기종/채널 태그 + 축별 토크·전류·온도·위치, 타임스탬프. **벤더별 테이블 금지, 태그로 구분.**
-- [ ] `BODA.CMS.Collector` headless 수집 서비스 분리 (Worker Service): 드라이버 로드 → 버퍼링/배치 적재. WPF는 뷰어로 전환.
-- [ ] 연결 끊김·재연결 복구 로직 (드라이버 계약에 재연결 시맨틱 포함)
-- [ ] 다중 로봇 동시 수집 (엔드포인트 N개 구성 파일 기반)
+### Phase P1 — 데이터 파이프라인 & 저장 + 수집기 분리 ✅ 코드 완료 (2026-07) — 실 DB 검증 대기
+- [x] 프로젝트 물리 분리: Core / Comms / Drivers.Doosan / Drivers.Simulated / Collector (§2 모듈 표 실현, DrflProbe도 모듈 참조로 전환)
+- [x] TimescaleDB 스키마(hypertable): `telemetry_frames` — robot_id/vendor/channel 태그 + 축별 `real[]` + `vendor_raw jsonb`, 바이너리 COPY 배치 적재. **벤더별 테이블 없음.** TimescaleDB 확장 미설치 시 일반 테이블 폴백.
+- [x] `BODA.CMS.Collector` headless 수집 서비스 (Worker Service): 벤더 카탈로그 → 채널별 펌프 → bounded 버퍼(포화 시 DropOldest — 수집이 저장을 기다리지 않음) → 배치 적재. `Storage:Enabled=false`면 dry-run(수집률 로그).
+- [x] 연결 끊김·재연결 복구: 계약에 재연결 시맨틱 명시(Faulted 후 ConnectAsync 재호출 가능), 드라이버 3종 보장 수정(두산 Modbus 연속오류 20회→Faulted·세션 소유 모드, DRFL 핸들 선정리), 지수 백오프 1s→30s 상한.
+- [x] 다중 로봇 동시 수집: `appsettings.json Collector:Robots[]` (RobotId·Vendor·Host·Port·Channels 필터) — 시뮬레이터 2채널로 end-to-end 검증.
+- [ ] 실 TimescaleDB 인스턴스 대상 적재 검증 (개발 PC에 5432 부재 — dry-run으로 파이프라인만 검증됨)
+- [ ] WPF를 Collector 구독 뷰어로 전환 (WebAPI/SignalR 필요 — P5 웹 대시보드와 함께 진행)
 
 ### Phase P2 — 조건기반 감시(CBM)
 - [ ] 정상 사이클 동안 **기준선 학습**(축별 토크·전류 평균/분산) — 공용 프레임 기준이므로 벤더 무관
@@ -275,7 +279,7 @@ public sealed class RobotCapabilities
 ## 7. 확인 필요 사항 (Open Questions)
 
 **플랫폼 공통**
-- [ ] Collector 분리 시 코어/드라이버의 `net8.0-windows` 의존 제거 가능 범위 (DRFL P/Invoke는 Windows DLL — 드라이버만 windows 타깃, 코어는 중립 유지가 목표)
+- [x] Collector 분리 시 `net8.0-windows` 의존 제거 범위 — **전부 제거 가능 확인**: Core·Comms·드라이버·Collector 모두 net8.0 중립 (P/Invoke 선언은 컴파일 타깃 무관, DRFL 채널만 런타임 win-x64 전제). windows 타깃은 WPF 앱뿐.
 - [ ] 벤더별 샘플링 주기 편차(1~100Hz+)의 저장·피처 리샘플링 규약
 
 **두산**

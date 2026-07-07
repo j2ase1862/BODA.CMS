@@ -55,6 +55,13 @@ namespace BODA.CMS.Drivers.Simulated
         public async Task ConnectAsync(RobotEndpoint endpoint, CancellationToken ct = default)
         {
             if (State == TelemetrySourceState.Connected) return;
+
+            // 재연결 시맨틱: 이전 세션 잔재 정리 (계약 규약 — 실제 드라이버와 동일 동작).
+            _cts?.Cancel();
+            _cts?.Dispose();
+            _cts = null;
+            _loop = null;
+
             SetState(TelemetrySourceState.Connecting);
             await Task.Delay(400, ct); // 접속 절차 흉내
 

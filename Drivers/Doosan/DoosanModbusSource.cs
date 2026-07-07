@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using BODA.CMS.Core.Telemetry;
-using BODA.CMS.Services;
+using BODA.CMS.Comms;
 
 namespace BODA.CMS.Drivers.Doosan
 {
@@ -47,14 +47,20 @@ namespace BODA.CMS.Drivers.Doosan
         private readonly ModbusConnectionService _modbus;
         private readonly byte _unitId;
         private readonly int _intervalMs;
+        private readonly bool _ownsConnection;
         private CancellationTokenSource? _cts;
         private Task? _loop;
 
-        public DoosanModbusSource(ModbusConnectionService modbus, byte unitId = 1, int intervalMs = 100)
+        /// <param name="ownsConnection">
+        /// true면 이 드라이버가 Modbus 세션 수명을 소유한다(해제 시 세션 닫음) — headless 수집기용.
+        /// false(기본)면 세션은 외부(연결 프로브 카드)와 공유되며 닫지 않는다 — WPF 앱용.
+        /// </param>
+        public DoosanModbusSource(ModbusConnectionService modbus, byte unitId = 1, int intervalMs = 100, bool ownsConnection = false)
         {
             _modbus = modbus;
             _unitId = unitId;
             _intervalMs = intervalMs;
+            _ownsConnection = ownsConnection;
         }
 
         public RobotCapabilities Capabilities => StaticCapabilities;
@@ -67,6 +73,13 @@ namespace BODA.CMS.Drivers.Doosan
         public async Task ConnectAsync(RobotEndpoint endpoint, CancellationToken ct = default)
         {
             if (State == TelemetrySourceState.Connected) return;
+
+            // 재연결 시맨틱: Faulted로 끝난 이전 폴링 루프의 잔재를 정리하고 새로 시작한다.
+            _cts?.Cancel();
+            _cts?.Dispose();
+            _cts = null;
+            _loop = null;
+
             SetState(TelemetrySourceState.Connecting);
 
             try
@@ -97,12 +110,16 @@ namespace BODA.CMS.Drivers.Doosan
             _cts?.Dispose();
             _cts = null;
             _loop = null;
+            if (_ownsConnection) _modbus.Disconnect(); // 재연결 시 스테일 소켓 없이 새 세션으로
             SetState(TelemetrySourceState.Disconnected);
         }
 
         private async Task PollLoopAsync(CancellationToken ct)
         {
             const int axes = 6;
+            const int maxConsecutiveErrors = 20; // ~2초(100ms 폴링) 연속 실패 → 링크 사망으로 판정
+            int consecutiveErrors = 0;
+
             while (!ct.IsCancellationRequested)
             {
                 try
@@ -119,12 +136,22 @@ namespace BODA.CMS.Drivers.Doosan
                     ushort[] pos = await _modbus.TryReadHoldingAsync(_unitId, PositionStart, axes);
                     ushort[] temp = await _modbus.TryReadHoldingAsync(_unitId, TemperatureStart, axes);
                     ushort[] cur = await _modbus.TryReadHoldingAsync(_unitId, CurrentStart, axes);
+                    consecutiveErrors = 0;
 
                     FrameReceived?.Invoke(this, ToFrame(DateTime.UtcNow, pos, temp, cur));
                 }
                 catch (Exception ex)
                 {
                     Notification?.Invoke(this, "Modbus 읽기 오류: " + ex.GetBaseException().Message);
+
+                    // TcpClient.Connected는 원격 절단 후에도 stale true일 수 있어
+                    // 연속 오류 횟수로 링크 사망을 판정한다 (수집기 재연결 트리거).
+                    if (++consecutiveErrors >= maxConsecutiveErrors)
+                    {
+                        Notification?.Invoke(this, $"연속 읽기 오류 {consecutiveErrors}회 — 링크 사망 판정, 재연결 필요.");
+                        SetState(TelemetrySourceState.Faulted);
+                        return;
+                    }
                 }
 
                 try { await Task.Delay(_intervalMs, ct); }

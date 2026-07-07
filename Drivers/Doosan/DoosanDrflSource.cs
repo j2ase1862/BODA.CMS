@@ -47,6 +47,11 @@ namespace BODA.CMS.Drivers.Doosan
         public async Task ConnectAsync(RobotEndpoint endpoint, CancellationToken ct = default)
         {
             if (State == TelemetrySourceState.Connected) return;
+
+            // 재연결 시맨틱: Faulted(컨트롤러 측 끊김) 후에는 DrflMonitorService 내부 핸들과
+            // _connected 플래그가 남아 있어 Connect()가 조용히 no-op 된다 — 먼저 정리한다.
+            _drfl.Disconnect();
+
             SetState(TelemetrySourceState.Connecting);
             _userDisconnect = false;
 
