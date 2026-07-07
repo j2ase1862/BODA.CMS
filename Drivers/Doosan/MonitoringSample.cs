@@ -1,10 +1,10 @@
-using System;
+﻿using System;
 
-namespace DoosanMonitor.Models
+namespace BODA.CMS.Drivers.Doosan
 {
     /// <summary>
     /// DRFL 모니터링 콜백 한 프레임을 진단에 필요한 축별 값만 추려 담은 불변 스냅샷.
-    /// (PdM 파이프라인·TimescaleDB 적재의 입력 단위.)
+    /// ⚠️ 드라이버 내부 타입 — 파이프라인 입력 단위는 Core의 RobotTelemetryFrame이다(P0에서 강등).
     /// </summary>
     public sealed class MonitoringSample
     {

@@ -16,10 +16,10 @@
 
   <!-- 앱이 실제로 쓰는 interop/서비스 소스를 그대로 링크해서 검증한다(복제 아님). -->
   <ItemGroup>
-    <Compile Include="..\..\Services\Drfl\DrflStructs.cs" Link="linked\DrflStructs.cs" />
-    <Compile Include="..\..\Services\Drfl\DrflInterop.cs" Link="linked\DrflInterop.cs" />
-    <Compile Include="..\..\Services\DrflMonitorService.cs" Link="linked\DrflMonitorService.cs" />
-    <Compile Include="..\..\Models\MonitoringSample.cs" Link="linked\MonitoringSample.cs" />
+    <Compile Include="..\..\Drivers\Doosan\Drfl\DrflStructs.cs" Link="linked\DrflStructs.cs" />
+    <Compile Include="..\..\Drivers\Doosan\Drfl\DrflInterop.cs" Link="linked\DrflInterop.cs" />
+    <Compile Include="..\..\Drivers\Doosan\DrflMonitorService.cs" Link="linked\DrflMonitorService.cs" />
+    <Compile Include="..\..\Drivers\Doosan\MonitoringSample.cs" Link="linked\MonitoringSample.cs" />
   </ItemGroup>
 
   <!-- DRFL 네이티브 런타임 DLL 자동 복사(메인과 동일 번들). -->

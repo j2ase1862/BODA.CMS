@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NModbus;
 
-namespace DoosanMonitor.Services
+namespace BODA.CMS.Services
 {
     /// <summary>
     /// Modbus TCP 연결을 관리하는 서비스.

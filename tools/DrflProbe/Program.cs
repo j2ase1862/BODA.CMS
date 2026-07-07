@@ -3,9 +3,8 @@ using System.Globalization;
 using System.Linq;
 using System.Net.Sockets;
 using System.Threading;
-using DoosanMonitor.Models;
-using DoosanMonitor.Services;
-using DoosanMonitor.Services.Drfl;
+using BODA.CMS.Drivers.Doosan;
+using BODA.CMS.Drivers.Doosan.Drfl;
 using NModbus;
 
 // 실기 검증 프로브 — 모두 읽기 전용/패시브. 로봇 명령 권한을 취득하지 않는다.

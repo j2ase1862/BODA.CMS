@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
-using DoosanMonitor.Models;
-using DoosanMonitor.Services.Drfl;
 
-namespace DoosanMonitor.Services
+using BODA.CMS.Drivers.Doosan.Drfl;
+
+namespace BODA.CMS.Drivers.Doosan
 {
     /// <summary>
     /// DRFL 기반 <b>패시브 모니터링</b> 서비스 (Phase 2 핵심 경로).

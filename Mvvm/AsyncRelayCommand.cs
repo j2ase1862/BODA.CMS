@@ -2,7 +2,7 @@ using System;
 using System.Threading.Tasks;
 using System.Windows.Input;
 
-namespace DoosanMonitor.Mvvm
+namespace BODA.CMS.Mvvm
 {
     /// <summary>비동기 작업을 실행하는 ICommand. 실행 중에는 중복 실행을 막습니다.</summary>
     public class AsyncRelayCommand : ICommand

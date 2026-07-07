@@ -4,6 +4,45 @@
 
 ---
 
+## 2026-07-07 — Phase P0: 드라이버 추상화 리팩터링 (멀티벤더 계약 확정)
+
+### 요약
+- ROADMAP을 멀티벤더 플랫폼 구조로 개편(§4 플랫폼 공통 / §5 벤더 모듈 / §6 온보딩 절차)한 데 이어, **P0 리팩터링을 코드로 완료**.
+- 이제 파이프라인 위쪽(VM·UI)은 `IRobotTelemetrySource` 계약과 `RobotTelemetryFrame`만 안다 — 벤더 타입은 컴포지션 루트(`MainWindow.xaml.cs`)에서만 등장.
+
+### 작업 내용
+- **Core 계약** (`Core/Telemetry/`, `BODA.CMS.Core.Telemetry`): `IRobotTelemetrySource`(State/FrameReceived/StateChanged/Notification), `RobotTelemetryFrame`(정규화 단위 + `VendorRaw` 딕셔너리), `RobotCapabilities`(+`DefaultPort`), `RobotEndpoint`, `ProductTierEvaluator`(capability → None/Basic/Pro).
+- **두산 드라이버** (`Drivers/Doosan/`):
+  - `DoosanModbusSource`(Basic) — 구 `ModbusTelemetryService` 대체. 위치만 ×0.1° 정규화, 온도·전류/토크는 `VendorRaw["temp_raw"/"cur_raw"]`에 원시 보존(스케일 미확정 → `Has*=false` 규약 준수). 공유 Modbus 세션이 외부에서 닫히면 `Faulted`로 전환.
+  - `DoosanDrflSource`(Pro) — `DrflMonitorService`를 감싸 공용 프레임 방출(JTS/동역학/외란 토크·전류·온도, DRFL 원본 단위가 규약과 일치해 환산 없음).
+  - `DrflMonitorService`·`MonitoringSample`·interop은 드라이버 내부로 이동(구 `Services/Drfl`, `Models`에서). `ModbusTelemetrySample` 제거.
+- **UI**: 채널 카드 1장 = `TelemetrySourceViewModel` 1개(계약에만 의존, 카드별 포트 입력·등급 라벨 표시), `MainWindow.xaml`은 `ItemsControl` 렌더 → **벤더 추가 시 XAML 수정 불필요**.
+- **테스트**: `tests/BODA.CMS.Tests`(xUnit, x64) 신설 — 등급 판정 9건 + Modbus 프레임 변환 4건 + 판독 필터 5건 = **18건 통과**. 두산 Modbus=Basic·DRFL=Pro 판정을 잠금. `InternalsVisibleTo`로 내부 매핑 함수 검증.
+- **도구**: `tools/DrflProbe` 링크 경로/네임스페이스 갱신(빌드 확인). `DoosanMonitor.sln` 잔재 삭제.
+- **UI/UX 확장(같은 세션)**:
+  - **제조사 선택**: `VendorDescriptor` 카탈로그(컴포지션 루트 등록) + 연결 카드의 콤보박스. 전환 시 실행 중 카드를 정지·해제 후 새 벤더의 채널 카드로 교체. JAKA/Rokae는 드라이버 구현 후 카탈로그 1항목 추가로 노출.
+  - **표시 신호 선택**: 카드별 체크박스(`SignalToggle`) — 첫 프레임에 실제 존재하는 신호로 자동 구성(벤더 하드코딩 없음), 해제 시 판독 표에서 즉시 제외(마지막 프레임으로 재렌더). DRFL 외란토크(`외란Nm`) 행 추가.
+  - **창 크기**: 1000×920, 최소 760×700.
+- **시뮬레이터 드라이버** (`Drivers/Simulated/SimulatedRobotSource.cs`): 하드웨어 없이 파이프라인·UI를 구동하는 가상 벤더. 사인파 조그 + 자세 의존 모델 토크 + 노이즈 합성. 프로필 2종 — 가상 Basic(10Hz, 범용 모사: 위치 정규화 + temp_raw/cur_raw)·가상 Pro(100Hz, 네이티브 모사: 토크/전류/온도 정규화). **코어·UI 수정 없이 카탈로그 등록만으로 벤더가 붙는 것을 실증** — 벤더 격리 원칙 검증 완료. `VendorDescriptor.ToString`을 DisplayName으로 오버라이드(콤보 항목·UIA 접근성 이름 정합).
+- **빌드 출력 경로 주의**: 솔루션 빌드(`Debug|x64`)는 `bin\x64\Debug\net8.0-windows\`에 떨어진다. 과거 프로젝트 단위 빌드가 만든 `bin\Debug\`(구형)는 삭제함 — **실행은 반드시 `bin\x64\Debug` 쪽으로** (구형 exe 실행으로 "시뮬레이터가 안 보이는" 혼동이 있었음).
+- **라이브 차트** (ScottPlot.WPF 5.0.55, `Views/SignalChartView`):
+  - 카드별 표↔차트 토글. 차트는 선택 신호 1개를 축별 라인(J1~J6)으로, 최근 30초 스크롤 창. 신호 선택 콤보는 기존 신호 라벨 재사용(벤더 무관).
+  - 데이터 경로: 드라이버 스레드 → VM의 bounded ConcurrentQueue(전 샘플, 상한 2048) → 차트 뷰 UI 타이머(10Hz)가 드레인 → 자체 링 버퍼(축별 double[]) → ScottPlot `Signal`이 그대로 렌더. 표 갱신(10Hz throttle)과 독립.
+  - ⚠️ **ScottPlot `DataStreamer`는 사용 금지**: `Add()` 내부 NRE로 앱 크래시 실측(인라인돼 스택엔 호출부만 남음). `Signal` + 자체 버퍼로 대체. 차트 예외는 카드 단위로 격리(타이머 정지 + `%TEMP%\BODA.CMS.crash.log`).
+  - 축 라벨은 `Malgun Gothic` 지정(ScottPlot 기본 폰트에 한글 글리프 없음). `VendorDescriptor`/`SignalToggle`에 ToString 오버라이드(콤보·UIA 이름 정합).
+  - App에 `DispatcherUnhandledException` 핸들러 추가 — 모니터링 앱이 UI 예외 한 번으로 죽지 않게 로그 + 계속 실행.
+
+### 검증
+- `dotnet build BODA.CMS.sln` 경고 0·오류 0, `dotnet test` 18/18 통과, DrflProbe 단독 빌드 통과.
+- 실기 검증(로봇 필요)은 별도: Modbus 카드 라이브 폴링이 기존과 동일하게 동작하는지 확인 필요(로직은 이식이며 신규 작성 아님).
+
+### 다음 작업
+1. **Phase P1**: TimescaleDB 스키마(공용 프레임 기준) + `BODA.CMS.Collector` 분리.
+2. (로봇 필요) 온도·전류/토크 스케일 확정 → `DoosanModbusSource`에서 정규화 승격 + capability 상향.
+3. (DLL 확보 후) DRFL 재검증 — §5.1 검증 노트 경로 ⓐⓑ.
+
+---
+
 ## 2026-06-25 — Phase 2(DRFL) 구현 + Phase 1(Modbus) 실기 매핑·앱 통합
 
 ### 요약

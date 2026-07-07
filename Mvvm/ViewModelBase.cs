@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace DoosanMonitor.Mvvm
+namespace BODA.CMS.Mvvm
 {
     /// <summary>INotifyPropertyChanged 기본 구현.</summary>
     public abstract class ViewModelBase : INotifyPropertyChanged

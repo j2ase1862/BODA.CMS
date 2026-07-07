@@ -6,8 +6,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <RootNamespace>DoosanMonitor</RootNamespace>
-    <AssemblyName>DoosanMonitor</AssemblyName>
+    <RootNamespace>BODA.CMS</RootNamespace>
+    <AssemblyName>BODA.CMS</AssemblyName>
     <!-- DRFLWin64.dll(네이티브 x64)을 P/Invoke 하므로 x64 고정. AnyCPU 로 두면 -->
     <!-- 32비트 프로세스로 떠 BadImageFormatException 이 난다. -->
     <Platforms>x64</Platforms>
@@ -17,11 +17,18 @@
   <ItemGroup>
     <!-- NuGet에서 최신 안정 버전(NModbus 3.x)으로 복원하세요. -->
     <PackageReference Include="NModbus" Version="3.0.81" />
+    <!-- 라이브 차트 (카드별 스트립 차트). -->
+    <PackageReference Include="ScottPlot.WPF" Version="5.0.55" />
   </ItemGroup>
 
-  <!-- tools/ 의 보조 콘솔(DrflProbe)은 앱 빌드에 포함하지 않는다. -->
+  <!-- 유닛테스트가 드라이버 내부 매핑 함수(internal)에 접근하기 위한 선언. -->
   <ItemGroup>
-    <Compile Remove="tools\**\*.cs" />
+    <InternalsVisibleTo Include="BODA.CMS.Tests" />
+  </ItemGroup>
+
+  <!-- tools/ 의 보조 콘솔(DrflProbe)과 tests/ 는 앱 빌드에 포함하지 않는다(별도 프로젝트). -->
+  <ItemGroup>
+    <Compile Remove="tools\**\*.cs;tests\**\*.cs" />
     <Page Remove="tools\**\*.xaml" />
   </ItemGroup>
 

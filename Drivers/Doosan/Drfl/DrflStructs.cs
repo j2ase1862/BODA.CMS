@@ -1,6 +1,6 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 
-namespace DoosanMonitor.Services.Drfl
+namespace BODA.CMS.Drivers.Doosan.Drfl
 {
     // ─────────────────────────────────────────────────────────────────────────
     // DRFL 데이터 구조체 — common/include/DRFS.h 를 그대로 미러링.

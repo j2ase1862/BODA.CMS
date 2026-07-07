@@ -1,12 +1,37 @@
 using System.Windows;
+using BODA.CMS.Core.Telemetry;
+using BODA.CMS.Drivers.Doosan;
+using BODA.CMS.Drivers.Simulated;
+using BODA.CMS.Services;
+using BODA.CMS.ViewModels;
 
-namespace DoosanMonitor
+namespace BODA.CMS
 {
     public partial class MainWindow : Window
     {
         public MainWindow()
         {
             InitializeComponent();
+
+            // 컴포지션 루트 — 벤더 드라이버 타입은 여기서만 등장한다(ROADMAP §3 벤더 격리).
+            // 새 벤더 지원 = 드라이버 모듈 구현 후 이 카탈로그에 항목 추가뿐.
+            // (P1에서 구성 파일 기반 다중 로봇 로딩으로 대체 예정.)
+            var modbus = new ModbusConnectionService();
+            var vendors = new[]
+            {
+                new VendorDescriptor("doosan", "두산로보틱스", () => new IRobotTelemetrySource[]
+                {
+                    new DoosanModbusSource(modbus),   // 범용 채널 → Basic
+                    new DoosanDrflSource(),           // 네이티브 채널 → Pro
+                }),
+                // JAKA·Rokae: Drivers.{Vendor} 구현 후 여기에 등록 (ROADMAP §5.2~5.3)
+                new VendorDescriptor("sim", "시뮬레이터 (가상 데이터)", () => new IRobotTelemetrySource[]
+                {
+                    new SimulatedRobotSource("basic", "가상 Basic (범용 모사)", rateHz: 10, deep: false),
+                    new SimulatedRobotSource("pro", "가상 Pro (네이티브 모사)", rateHz: 100, deep: true),
+                }),
+            };
+            DataContext = new MainViewModel(modbus, vendors);
         }
     }
 }

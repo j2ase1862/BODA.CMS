@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 
-namespace DoosanMonitor.Services.Drfl
+namespace BODA.CMS.Drivers.Doosan.Drfl
 {
     /// <summary>ROBOT_STATE (DRFC.h). _GetRobotState 반환값.</summary>
     public enum ROBOT_STATE
