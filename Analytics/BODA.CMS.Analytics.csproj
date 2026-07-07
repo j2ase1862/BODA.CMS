@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- CBM(조건기반 감시) 엔진 — 기준선 학습·임계값 알림 (ROADMAP §4 P2, 이후 ONNX 추론도 이 모듈).
+       공용 프레임만 소비 — 벤더 의존성 없음. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>BODA.CMS.Analytics</RootNamespace>
+    <AssemblyName>BODA.CMS.Analytics</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Core\BODA.CMS.Core.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -12,6 +12,9 @@
     <!-- 32비트 프로세스로 떠 BadImageFormatException 이 난다. -->
     <Platforms>x64</Platforms>
     <PlatformTarget>x64</PlatformTarget>
+    <!-- 출력 경로 단일화: 솔루션(x64) 빌드와 프로젝트 빌드가 서로 다른 폴더(bin\x64\Debug vs bin\Debug)에
+         떨어져 구버전 exe를 실행하는 사고가 반복됨 → 항상 bin\Debug 로 고정. -->
+    <AppendPlatformToOutputPath>false</AppendPlatformToOutputPath>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,6 +27,7 @@
   <ItemGroup>
     <ProjectReference Include="Core\BODA.CMS.Core.csproj" />
     <ProjectReference Include="Comms\BODA.CMS.Comms.csproj" />
+    <ProjectReference Include="Analytics\BODA.CMS.Analytics.csproj" />
     <ProjectReference Include="Drivers\Doosan\BODA.CMS.Drivers.Doosan.csproj" />
     <ProjectReference Include="Drivers\Simulated\BODA.CMS.Drivers.Simulated.csproj" />
   </ItemGroup>
@@ -35,7 +39,7 @@
 
   <!-- 하위 프로젝트 폴더·보조 콘솔·테스트는 앱 글로빙에서 제외(각자 별도 csproj). -->
   <ItemGroup>
-    <Compile Remove="Core\**\*.cs;Comms\**\*.cs;Drivers\**\*.cs;Collector\**\*.cs;tools\**\*.cs;tests\**\*.cs" />
+    <Compile Remove="Core\**\*.cs;Comms\**\*.cs;Analytics\**\*.cs;Drivers\**\*.cs;Collector\**\*.cs;tools\**\*.cs;tests\**\*.cs" />
     <Page Remove="tools\**\*.xaml" />
   </ItemGroup>
 

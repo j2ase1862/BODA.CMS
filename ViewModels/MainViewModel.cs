@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
+using BODA.CMS.Analytics;
 using BODA.CMS.Core.Telemetry;
 using BODA.CMS.Mvvm;
 using BODA.CMS.Comms;
@@ -60,6 +61,28 @@ namespace BODA.CMS.ViewModels
         /// <summary>채널 카드 목록 — XAML ItemsControl이 그대로 렌더.</summary>
         public ObservableCollection<TelemetrySourceViewModel> Sources { get; } = new();
 
+        /// <summary>CBM 알림 리스트 (최신이 위, 최대 100건).</summary>
+        public ObservableCollection<AlertItem> Alerts { get; } = new();
+
+        // ⚠️ 드라이버 스레드에서 호출 → UI 스레드로 마샬링.
+        private void OnCbmAlert(string cardTitle, CbmAlert alert)
+        {
+            var dispatcher = Application.Current?.Dispatcher;
+            if (dispatcher is null) return;
+            dispatcher.BeginInvoke(() =>
+            {
+                Brush brush = alert.Severity switch
+                {
+                    CbmSeverity.Alarm => Brushes.Firebrick,
+                    CbmSeverity.Warning => Brushes.DarkOrange,
+                    _ => Brushes.SeaGreen,
+                };
+                Alerts.Insert(0, new AlertItem($"[{DateTime.Now:HH:mm:ss}] [{cardTitle}] {alert.Message}", brush));
+                while (Alerts.Count > 100) Alerts.RemoveAt(Alerts.Count - 1);
+                AppendLog($"CBM {alert.Severity}: [{cardTitle}] {alert.Message}");
+            });
+        }
+
         private async Task SwitchVendorAsync(VendorDescriptor vendor)
         {
             try
@@ -83,7 +106,7 @@ namespace BODA.CMS.ViewModels
         private void LoadSources(VendorDescriptor vendor)
         {
             foreach (IRobotTelemetrySource source in vendor.CreateSources())
-                Sources.Add(new TelemetrySourceViewModel(source, () => IpAddress, AppendLogSafe));
+                Sources.Add(new TelemetrySourceViewModel(source, () => IpAddress, AppendLogSafe, OnCbmAlert));
         }
 
         public string IpAddress { get => _ipAddress; set => SetProperty(ref _ipAddress, value); }

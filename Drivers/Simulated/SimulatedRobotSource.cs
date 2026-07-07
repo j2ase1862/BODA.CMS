@@ -20,15 +20,26 @@ namespace BODA.CMS.Drivers.Simulated
         private static readonly float[] HomeDeg = { 0f, -20f, 90f, 0f, 45f, 0f };
         private static readonly float[] AmplitudeDeg = { 60f, 25f, 30f, 40f, 20f, 90f };
 
+        private const int FaultAxis = 2;               // J3
+        private const double FaultRampSeconds = 20;    // 결함 도달까지 램프
+        private const double FaultTorqueGain = 0.35;   // 토크/전류 +35%
+        private const double FaultTempRiseC = 6;       // 온도 +6℃
+
         private readonly bool _deep;
         private readonly int _intervalMs;
+        private readonly double? _faultStartSeconds;
         private readonly Random _rng = new(42);
         private CancellationTokenSource? _cts;
         private Task? _loop;
 
-        public SimulatedRobotSource(string channelId, string displayName, double rateHz, bool deep)
+        /// <param name="faultStartSeconds">
+        /// 지정 시 연결 후 이 시점부터 J3에 점진 결함 주입(토크/전류 +35%, 온도 +6℃, 20초 램프) —
+        /// CBM 알림 파이프라인 검증용.
+        /// </param>
+        public SimulatedRobotSource(string channelId, string displayName, double rateHz, bool deep, double? faultStartSeconds = null)
         {
             _deep = deep;
+            _faultStartSeconds = faultStartSeconds;
             _intervalMs = Math.Max(1, (int)Math.Round(1000.0 / rateHz));
             Capabilities = new RobotCapabilities
             {
@@ -69,6 +80,8 @@ namespace BODA.CMS.Drivers.Simulated
             _loop = Task.Run(() => GenerateLoopAsync(_cts.Token));
             SetState(TelemetrySourceState.Connected);
             Notification?.Invoke(this, $"가상 컨트롤러 연결(시뮬레이션) — {endpoint.Host} 는 무시됨, 합성 데이터 {Capabilities.NominalSampleRateHz:0}Hz 방출.");
+            if (_faultStartSeconds is double fs)
+                Notification?.Invoke(this, $"⚠️ 결함 주입 예약: t={fs:0}s 부터 J{FaultAxis + 1} 토크/전류 +{FaultTorqueGain:P0}, 온도 +{FaultTempRiseC}℃ ({FaultRampSeconds:0}s 램프) — CBM 검증용.");
         }
 
         public async Task DisconnectAsync()
@@ -120,6 +133,16 @@ namespace BODA.CMS.Drivers.Simulated
                 ext[j] = (float)(jts[j] - model[j]);
                 cur[j] = (float)(Math.Abs(gravity) / 9.0 + 0.4 + Math.Abs(noise) * 0.2);
                 temp[j] = (float)(31.0 + j + 1.5 * Math.Sin(t / 45.0));
+            }
+
+            // 결함 주입: J3 마찰 증가 흉내 — 실측 토크/전류 상승 + 발열 (모델 토크는 그대로 → 외란도 커짐).
+            if (_faultStartSeconds is double faultStart && t >= faultStart)
+            {
+                double ramp = Math.Min(1.0, (t - faultStart) / FaultRampSeconds);
+                jts[FaultAxis] *= (float)(1 + FaultTorqueGain * ramp);
+                ext[FaultAxis] = jts[FaultAxis] - model[FaultAxis];
+                cur[FaultAxis] *= (float)(1 + FaultTorqueGain * ramp);
+                temp[FaultAxis] += (float)(FaultTempRiseC * ramp);
             }
 
             if (_deep)

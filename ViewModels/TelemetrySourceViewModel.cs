@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
+using BODA.CMS.Analytics;
 using BODA.CMS.Core.Telemetry;
 using BODA.CMS.Mvvm;
 
@@ -36,6 +37,8 @@ namespace BODA.CMS.ViewModels
         private readonly ConcurrentQueue<RobotTelemetryFrame> _chartQueue = new();
         private int _chartQueueCount;
 
+        private readonly CbmMonitor _cbm = new();
+
         private string _status = "대기";
         private Brush _statusBrush = Brushes.Gray;
         private string _readout = "(모니터링 시작 전)";
@@ -43,8 +46,12 @@ namespace BODA.CMS.ViewModels
         private bool _isRunning;
         private bool _isChartMode;
         private SignalToggle? _selectedChartSignal;
+        private string _cbmText = "CBM 대기";
+        private Brush _cbmBrush = Brushes.Gray;
 
-        public TelemetrySourceViewModel(IRobotTelemetrySource source, Func<string> getHost, Action<string> log)
+        public TelemetrySourceViewModel(
+            IRobotTelemetrySource source, Func<string> getHost, Action<string> log,
+            Action<string, CbmAlert>? onCbmAlert = null)
         {
             _source = source;
             _getHost = getHost;
@@ -56,6 +63,8 @@ namespace BODA.CMS.ViewModels
             _source.FrameReceived += OnFrameReceived;
             _source.StateChanged += OnStateChanged;
             _source.Notification += (_, msg) => _log($"[{Title}] {msg}");
+            if (onCbmAlert is not null)
+                _cbm.AlertRaised += a => onCbmAlert(Title, a); // ⚠️ 드라이버 스레드 — 구독자가 마샬링
         }
 
         public IRobotTelemetrySource Source => _source;
@@ -91,6 +100,10 @@ namespace BODA.CMS.ViewModels
         }
 
         public string ButtonText => IsRunning ? "모니터링 중지" : "모니터링 시작";
+
+        /// <summary>CBM 상태 칩: "CBM 학습 42%" → "건강도 100" (알림 있으면 개수 표시).</summary>
+        public string CbmText { get => _cbmText; set => SetProperty(ref _cbmText, value); }
+        public Brush CbmBrush { get => _cbmBrush; set => SetProperty(ref _cbmBrush, value); }
 
         /// <summary>true면 판독 표 대신 라이브 차트를 표시.</summary>
         public bool IsChartMode { get => _isChartMode; set => SetProperty(ref _isChartMode, value); }
@@ -177,6 +190,9 @@ namespace BODA.CMS.ViewModels
         // 프레임은 불변이라 스레드 간 전달이 안전하다.
         private void OnFrameReceived(object? sender, RobotTelemetryFrame frame)
         {
+            // CBM 경로: 전 샘플 반영 (내부 1초 집계 — 드라이버 스레드 안전).
+            _cbm.Ingest(frame);
+
             // 차트 경로: throttle 이전에 전 샘플을 큐잉 (상한 도달 시 드롭).
             if (_chartQueueCount < ChartQueueLimit)
             {
@@ -188,12 +204,31 @@ namespace BODA.CMS.ViewModels
             if (now - _lastUiUpdate < UiThrottle) return;
             _lastUiUpdate = now;
 
+            CbmSnapshot cbm = _cbm.Snapshot;
             Application.Current?.Dispatcher.BeginInvoke(() =>
             {
                 _lastFrame = frame;
                 EnsureSignalToggles(frame);
                 Readout = BuildReadout(frame, SelectedLabels());
+                UpdateCbmChip(cbm);
             });
+        }
+
+        private void UpdateCbmChip(CbmSnapshot s)
+        {
+            if (s.Phase == CbmPhase.Learning)
+            {
+                CbmText = $"CBM 학습 {s.LearningProgress:P0}";
+                CbmBrush = Brushes.Gray;
+                return;
+            }
+
+            CbmText = s.ActiveAlertCount > 0
+                ? $"건강도 {s.HealthScore} · 알림 {s.ActiveAlertCount} ({s.WorstDescription})"
+                : $"건강도 {s.HealthScore}";
+            CbmBrush = s.HealthScore >= 80 ? Brushes.SeaGreen
+                     : s.HealthScore >= 50 ? Brushes.DarkOrange
+                     : Brushes.Firebrick;
         }
 
         /// <summary>프레임에 존재하는 신호마다 토글을 1회 생성(라벨 = 판독 행 키).</summary>
@@ -242,41 +277,11 @@ namespace BODA.CMS.ViewModels
             return sb.ToString().TrimEnd();
         }
 
-        /// <summary>프레임의 표시 가능한 행(라벨 + 셀 문자열) 열거 — 토글 구성과 판독 출력의 단일 원천.</summary>
+        /// <summary>프레임의 표시 가능한 행(라벨 + 셀 문자열) 열거 — 신호 열거 원천은 Core의 <see cref="TelemetrySignals"/>.</summary>
         private static IEnumerable<(string Label, string Cells)> Rows(RobotTelemetryFrame f)
         {
-            foreach ((string label, double[] values, string fmt) in EnumerateSignals(f))
+            foreach ((string label, double[] values, string fmt) in TelemetrySignals.Enumerate(f))
                 yield return (label, string.Join(" ", values.Select(x => x.ToString(fmt, CultureInfo.InvariantCulture).PadLeft(9))));
-        }
-
-        /// <summary>
-        /// 프레임에 존재하는 신호(라벨 + 축별 값 + 표시 형식) 열거 — 판독 표와 차트가 공유하는 단일 원천.
-        /// 라벨은 신호 토글·차트 신호 선택의 키와 동일.
-        /// </summary>
-        internal static IEnumerable<(string Label, double[] Values, string Format)> EnumerateSignals(RobotTelemetryFrame f)
-        {
-            static double[] D(float[] v) => Array.ConvertAll(v, x => (double)x);
-
-            yield return ("위치°", D(f.JointPositionDeg), "0.00");
-
-            if (f.JointVelocityDegS is { } vel) yield return ("속도°/s", D(vel), "0.0");
-            if (f.JointTorqueNm is { } jts) yield return ("토크Nm", D(jts), "0.00");
-            if (f.ModelTorqueNm is { } mdl) yield return ("모델Nm", D(mdl), "0.00");
-            if (f.ExternalTorqueNm is { } ext) yield return ("외란Nm", D(ext), "0.00");
-            if (f.MotorCurrentA is { } cur) yield return ("전류A", D(cur), "0.00");
-            if (f.TemperatureC is { } tmp) yield return ("온도℃", D(tmp), "0.0");
-
-            if (f.VendorRaw is not null)
-                foreach ((string key, double[] raw) in f.VendorRaw)
-                    yield return (key, raw, "0");
-        }
-
-        /// <summary>프레임에서 라벨에 해당하는 축별 값 추출 (차트용). 없으면 null.</summary>
-        internal static double[]? ExtractSignal(RobotTelemetryFrame f, string label)
-        {
-            foreach ((string l, double[] values, _) in EnumerateSignals(f))
-                if (l == label) return values;
-            return null;
         }
     }
 }

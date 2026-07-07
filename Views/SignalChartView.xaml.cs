@@ -78,7 +78,7 @@ namespace BODA.CMS.Views
                 while (vm.TryDequeueChartFrame(out RobotTelemetryFrame frame))
                 {
                     if (label is null) continue; // 신호 미정이면 큐만 비운다
-                    double[]? values = TelemetrySourceViewModel.ExtractSignal(frame, label);
+                    double[]? values = TelemetrySignals.Extract(frame, label);
                     if (values is null || values.Length != _buffers.Length) continue;
                     Append(values);
                     added = true;

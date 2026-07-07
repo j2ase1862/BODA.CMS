@@ -12,6 +12,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -101,6 +102,8 @@
                                 <TextBlock Text="{Binding SubLabel}" Foreground="#FF8A93A0"
                                            Margin="6,0,0,0" VerticalAlignment="Center" />
                                 <TextBlock Text="{Binding Status}" Foreground="{Binding StatusBrush}"
+                                           FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding CbmText}" Foreground="{Binding CbmBrush}"
                                            FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center" />
                             </StackPanel>
 
@@ -205,8 +208,34 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
+        <!-- CBM 알림 리스트 (최신이 위) -->
+        <Border Grid.Row="2" Background="White" CornerRadius="8" Padding="12"
+                BorderBrush="#FFE2E5EA" BorderThickness="1" Margin="0,14,0,0">
+            <Border.Effect>
+                <DropShadowEffect Color="#22000000" BlurRadius="10" ShadowDepth="1" />
+            </Border.Effect>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Text="CBM 알림" FontWeight="SemiBold" Foreground="#FF333A45" />
+                <ScrollViewer Grid.Row="1" MaxHeight="96" Margin="0,6,0,0"
+                              VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding Alerts}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Text}" Foreground="{Binding Brush}"
+                                           FontFamily="Consolas" FontSize="12" TextWrapping="Wrap" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
         <!-- 로그 -->
-        <Border Grid.Row="2" Background="White" CornerRadius="8" Padding="2"
+        <Border Grid.Row="3" Background="White" CornerRadius="8" Padding="2"
                 BorderBrush="#FFE2E5EA" BorderThickness="1" Margin="0,14,0,0">
             <TextBox Text="{Binding LogText, Mode=OneWay}" IsReadOnly="True"
                      FontFamily="Consolas" FontSize="12" Foreground="#FF2B3138"

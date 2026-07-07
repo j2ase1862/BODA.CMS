@@ -28,7 +28,8 @@ namespace BODA.CMS
                 new VendorDescriptor("sim", "시뮬레이터 (가상 데이터)", () => new IRobotTelemetrySource[]
                 {
                     new SimulatedRobotSource("basic", "가상 Basic (범용 모사)", rateHz: 10, deep: false),
-                    new SimulatedRobotSource("pro", "가상 Pro (네이티브 모사)", rateHz: 100, deep: true),
+                    // Pro 채널은 t=100s에 J3 결함 주입 — CBM(기준선 60s 학습 → 알람) 데모/검증용.
+                    new SimulatedRobotSource("pro", "가상 Pro (네이티브 모사)", rateHz: 100, deep: true, faultStartSeconds: 100),
                 }),
             };
             DataContext = new MainViewModel(modbus, vendors);
