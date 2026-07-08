@@ -4,6 +4,25 @@
 
 ---
 
+## 2026-07-08 (5) — Rokae 온보딩 (3호 벤더 — 조사 + 드라이버 본체)
+
+### 요약
+- §6 1·2단계를 **실제 웹 리서치로 수행**(추측 프로토콜 구현 금지 원칙) — 공식 SDK 존재 확인(RokaeRobot GitHub, Apache-2.0, C# 포함).
+- 와이어 프로토콜이 비공개(프리빌트 SDK)라 통신부를 `IRokaeStateClient`로 추상화하고 **드라이버 본체(폴링·정규화·재연결·Pro 판정)를 완성** — SDK zip 확보 시 클라이언트 구현체만 추가(ML의 IAnomalyScorer 패턴 재적용).
+
+### 조사 확정 사항
+- xCoreSDK-CSharp: C++/CLI 래퍼(xCoreSDK_cli.dll), x64 Windows, .NET≥5, NuGet 없음(Releases zip). **비실시간 인터페이스 전용** → 상태 조회 폴링이 곧 패시브 채널.
+- RCI 1kHz = 제어 장악 → 오프라인 전용 분류(두산 RT 동일). Modbus는 확장 IO 용도만 확인 — 텔레메트리 채널 보류.
+
+### 구현
+- `Drivers.Rokae`: `RokaeXCoreSource` — 10Hz 폴링, 클라이언트가 정규화 책임(위치°/토크Nm/전류A/온도℃ — xMate 전축 JTS), 연속 실패 10회→Faulted, 재연결 시맨틱. capability로 **Pro 자동 판정**(전축 토크센서 쇼케이스).
+- **카탈로그 미등록**: SDK 클라이언트가 없는 상태로 콤보에 노출하지 않음(빈 껍데기 금지 — JAKA 때 결정 준수). SDK 확보 → XCoreSdkStateClient → 등록 순.
+
+### 검증
+- 테스트 +4 (총 54): Pro 등급 판정, 폴링 프레임 정규화(토크 Nm 정규화 필드·VendorRaw 없음·미제공 null), 연속 실패→Faulted, Faulted 후 재연결.
+
+---
+
 ## 2026-07-08 (4) — JAKA 온보딩 (2호 벤더 — §6 절차 첫 적용)
 
 ### 요약

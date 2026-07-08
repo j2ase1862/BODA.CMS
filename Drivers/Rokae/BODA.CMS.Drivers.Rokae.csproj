@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Rokae 벤더 드라이버 모듈 (ROADMAP §5.3 — 3호 벤더, Pro 쇼케이스: 전 관절 토크센서).
+       채널: xCore SDK 비실시간 상태 조회 폴링(제어권 미취득 — 패시브).
+       와이어 프로토콜이 비공개(프리빌트 SDK)라 통신부는 IRokaeStateClient 로 추상화 —
+       공식 xCoreSDK-CSharp(Apache-2.0, Releases zip) 확보 시 XCoreSdkStateClient 를 추가한다. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>BODA.CMS.Drivers.Rokae</RootNamespace>
+    <AssemblyName>BODA.CMS.Drivers.Rokae</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Core\BODA.CMS.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BODA.CMS.Tests" />
+  </ItemGroup>
+
+</Project>

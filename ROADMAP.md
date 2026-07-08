@@ -266,12 +266,24 @@ public sealed class RobotCapabilities
 - [ ] 4. **실기 매핑/검증(하드웨어 필요)**: JakaProbe로 ⓐ 스트림 주기 실측 ⓑ `joint_actual_position` 단위 대조(도° 여부 — 펜던트 비교) ⓒ 전류/온도/토크 필드명·단위 확정 → 정규화 매핑 + capability 상향(Pro 승격 검토) ⓓ Modbus 레지스터 맵 검증 → `JakaModbusSource` 추가
 - [ ] 8. 실측 맵·펌웨어 호환성 노트 기록 (실기 후)
 
-### 5.3 Rokae (3호 — 계획)
+### 5.3 Rokae (3호 — 드라이버 본체 완료, SDK 바이너리·실기 대기)
 
 > 선정 이유: **전 관절 토크센서** 탑재 → `HasJointTorqueSensor=true`인 최고 품질 데이터. Pro 등급 쇼케이스 벤더.
 
-- [ ] 사전 조사: xCore 컨트롤러 외부 통신 옵션 (SDK/RCI, 표준 프로토콜 지원 여부)
-- [ ] `Drivers.Rokae` 구현 → §6 온보딩 체크리스트
+**조사 결과 (2026-07, 웹 리서치 — §6 1·2단계)**
+- 공식 SDK 공개: `github.com/RokaeRobot` — xCoreSDK-CPP/Python/**CSharp**/Android, **Apache-2.0**. C# SDK는 C++/CLI 래퍼(`xCoreSDK_cli.dll`, x64 Windows, .NET≥5, NuGet 없음 — Releases zip 수동 취득).
+- **본선 채널 = SDK 비실시간 상태 조회**(위치·상태 읽기, 모션 명령 미사용) — C# SDK는 비실시간 전용이라 제어권 이슈 자체가 없음. 폴링 = 패시브(두산 Modbus 폴링과 동일 논리).
+- **와이어 프로토콜 비공개**(프리빌트 라이브러리) → 순수 C# 재구현 불가 — SDK 바이너리 번들 필요(두산 DRFL 전례, `libs/rokae/`).
+- RCI 1kHz 실시간 모드 = 제어 장악 → **오프라인 캐릭터라이제이션 전용**(두산 RT와 동일 분류).
+- Modbus: 문서상 확장 IO 용도만 확인 — 텔레메트리 레지스터 맵 미확인 → 채널 후보 보류.
+
+**진행 상태 (§6 체크리스트 기준)**
+- [x] 1·2. 문서 조사·채널 분류 (위 조사 결과)
+- [x] 5. 드라이버 본체 — `Drivers.Rokae`: `RokaeXCoreSource`(10Hz 폴링, 전 신호 정규화 매핑, 연속 실패 10회→Faulted, 재연결 시맨틱) + `IRokaeStateClient` 추상화(통신부 — SDK 확보 시 `XCoreSdkStateClient` 구현체만 추가). capability: 전축 JTS·전류·온도 true → **Pro 자동 판정**.
+- [x] 6. 계약 준수 테스트 — 가짜 상태 클라이언트로 폴링·정규화·Faulted·재연결 검증 4건
+- [ ] **SDK 바이너리 확보**: xCoreSDK-CSharp Releases zip → `libs/rokae/` 번들 → `XCoreSdkStateClient` 구현 → 카탈로그 등록 (미구현 클라이언트 상태로는 콤보에 노출하지 않음 — 빈 껍데기 금지)
+- [ ] 3·4. 프로브·실기 매핑(하드웨어 필요): 상태 조회 주기 상한 실측, 단위 대조(SDK 라디안 여부), 토크센서 값 sanity → capability 검증
+- [ ] 8. 실측·펌웨어 호환성 노트 기록 (실기 후)
 
 ### 5.4 후보 풀 (우선순위 미정 — 시장 요구 발생 시 §6 절차로 착수)
 
