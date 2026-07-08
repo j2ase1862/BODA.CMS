@@ -11,3 +11,6 @@ snapshot.txt
 
 # 기타
 *.log
+
+# 배포 패키지 (tools/package.ps1 산출)
+dist/

@@ -1,7 +1,7 @@
-<Project Sdk="Microsoft.NET.Sdk.Worker">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
-  <!-- headless 수집 서비스 (ROADMAP §4 P1) — 구성 파일 기반 다중 로봇 수집,
-       재연결 백오프, 버퍼링/배치 TimescaleDB 적재. UI 없음(Windows 서비스/콘솔로 구동).
+  <!-- headless 수집 + 무인 감시 서비스 (ROADMAP §4 P1/P5) — 구성 파일 기반 다중 로봇 수집,
+       재연결 백오프, TimescaleDB 배치 적재, CBM/ML 무인 감시, 웹 대시보드(WebAPI + 정적 페이지).
        벤더 타입은 Program.cs(컴포지션 루트) 카탈로그 등록에서만 등장한다. -->
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -13,19 +13,27 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
     <PackageReference Include="Npgsql" Version="8.0.5" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Core\BODA.CMS.Core.csproj" />
     <ProjectReference Include="..\Comms\BODA.CMS.Comms.csproj" />
+    <ProjectReference Include="..\Analytics\BODA.CMS.Analytics.csproj" />
     <ProjectReference Include="..\Drivers\Doosan\BODA.CMS.Drivers.Doosan.csproj" />
     <ProjectReference Include="..\Drivers\Simulated\BODA.CMS.Drivers.Simulated.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="BODA.CMS.Tests" />
+  </ItemGroup>
+
+  <!-- ML 모델 번들 — 무인 감시의 ML 경로용 (없으면 CBM만으로 동작). -->
+  <ItemGroup>
+    <None Include="..\models\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>models\%(Filename)%(Extension)</Link>
+    </None>
   </ItemGroup>
 
 </Project>

@@ -1,3 +1,4 @@
+using BODA.CMS.Collector.Dashboard;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Npgsql;
@@ -70,6 +71,42 @@ namespace BODA.CMS.Collector.Storage
             await using (var idx = new NpgsqlCommand(
                 "CREATE INDEX IF NOT EXISTS idx_telemetry_robot_time ON telemetry_frames (robot_id, time DESC);", conn))
                 await idx.ExecuteNonQueryAsync(ct);
+
+            // 알림 이력 (CBM/ML/비전 — 저빈도 단건 insert)
+            await using (var alerts = new NpgsqlCommand("""
+                CREATE TABLE IF NOT EXISTS telemetry_alerts (
+                    time      timestamptz NOT NULL,
+                    robot_id  text        NOT NULL,
+                    vendor    text        NOT NULL,
+                    channel   text        NOT NULL,
+                    signal    text        NOT NULL,
+                    axis      int         NOT NULL,
+                    severity  text        NOT NULL,
+                    kind      text        NOT NULL,
+                    message   text        NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_alerts_robot_time ON telemetry_alerts (robot_id, time DESC);
+                """, conn))
+                await alerts.ExecuteNonQueryAsync(ct);
+        }
+
+        public async Task WriteAlertAsync(AlertRecord a, CancellationToken ct)
+        {
+            await using var conn = await _dataSource.OpenConnectionAsync(ct);
+            await using var cmd = new NpgsqlCommand("""
+                INSERT INTO telemetry_alerts (time, robot_id, vendor, channel, signal, axis, severity, kind, message)
+                VALUES (@t, @r, @v, @c, @s, @a, @sev, @k, @m);
+                """, conn);
+            cmd.Parameters.AddWithValue("t", a.AtUtc);
+            cmd.Parameters.AddWithValue("r", a.RobotId);
+            cmd.Parameters.AddWithValue("v", a.Vendor);
+            cmd.Parameters.AddWithValue("c", a.Channel);
+            cmd.Parameters.AddWithValue("s", a.Signal);
+            cmd.Parameters.AddWithValue("a", a.Axis);
+            cmd.Parameters.AddWithValue("sev", a.Severity);
+            cmd.Parameters.AddWithValue("k", a.Kind);
+            cmd.Parameters.AddWithValue("m", a.Message);
+            await cmd.ExecuteNonQueryAsync(ct);
         }
 
         public async Task WriteBatchAsync(IReadOnlyList<TelemetryRecord> batch, CancellationToken ct)

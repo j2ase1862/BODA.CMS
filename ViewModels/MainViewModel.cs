@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using BODA.CMS.Analytics;
+using BODA.CMS.Core.Licensing;
 using BODA.CMS.Core.Telemetry;
 using BODA.CMS.Mvvm;
 using BODA.CMS.Comms;
@@ -31,17 +32,21 @@ namespace BODA.CMS.ViewModels
         private string _logText = string.Empty;
 
         private VendorDescriptor _selectedVendor;
+        private readonly LicenseStatus _license;
 
-        public MainViewModel(ModbusConnectionService probeConnection, IReadOnlyList<VendorDescriptor> vendors)
+        public MainViewModel(ModbusConnectionService probeConnection, IReadOnlyList<VendorDescriptor> vendors,
+            LicenseStatus? license = null)
         {
             if (vendors.Count == 0) throw new ArgumentException("벤더 카탈로그가 비어 있습니다.", nameof(vendors));
 
             _probe = probeConnection;
             Vendors = vendors;
+            _license = license ?? new LicenseStatus(LicenseMode.Trial, null, "평가판");
             ConnectCommand = new AsyncRelayCommand(ToggleConnectionAsync);
 
             _selectedVendor = vendors[0];
             LoadSources(_selectedVendor);
+            AppendLog(_license.Description);
         }
 
         /// <summary>제조사 카탈로그 — 컴포지션 루트가 등록. 새 벤더 = 드라이버 구현 + 카탈로그 1항목.</summary>
@@ -107,7 +112,8 @@ namespace BODA.CMS.ViewModels
         private void LoadSources(VendorDescriptor vendor)
         {
             foreach (IRobotTelemetrySource source in vendor.CreateSources())
-                Sources.Add(new TelemetrySourceViewModel(source, () => IpAddress, AppendLogSafe, OnCbmAlert));
+                Sources.Add(new TelemetrySourceViewModel(source, () => IpAddress, AppendLogSafe, OnCbmAlert,
+                    canUseTier: _license.AllowsChannel));
         }
 
         public string IpAddress { get => _ipAddress; set => SetProperty(ref _ipAddress, value); }

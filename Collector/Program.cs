@@ -1,14 +1,19 @@
 using BODA.CMS.Collector;
+using BODA.CMS.Collector.Dashboard;
 using BODA.CMS.Collector.Storage;
 using BODA.CMS.Comms;
+using BODA.CMS.Core.Licensing;
 using BODA.CMS.Core.Telemetry;
 using BODA.CMS.Drivers.Doosan;
 using BODA.CMS.Drivers.Simulated;
 using Microsoft.Extensions.Options;
 
-HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<CollectorOptions>(builder.Configuration.GetSection("Collector"));
+
+// ── 라이선스 (P5): exe 옆 license.json — 없으면 평가판, 불량/만료면 Basic 강등 ──
+builder.Services.AddSingleton(LicenseVerifier.Load(Path.Combine(AppContext.BaseDirectory, "license.json")));
 
 // ── 벤더 카탈로그 (컴포지션 루트 — 벤더 타입은 여기서만 등장, ROADMAP §3 벤더 격리) ──
 // 새 벤더 지원 = Drivers.{Vendor} 구현 + 아래 한 항목.
@@ -27,8 +32,9 @@ builder.Services.AddSingleton(new VendorDescriptor("sim", "시뮬레이터", () 
     new SimulatedRobotSource("pro", "가상 Pro (네이티브 모사)", rateHz: 100, deep: true),
 }));
 
-// ── 파이프라인: 펌프 → 버퍼 → 배치 적재 ──
+// ── 파이프라인: 펌프 → 버퍼 → 배치 적재 + 무인 감시(CBM/ML) + 대시보드 ──
 builder.Services.AddSingleton<FrameBuffer>();
+builder.Services.AddSingleton<DashboardState>();
 builder.Services.AddSingleton<IFrameStore>(sp =>
     sp.GetRequiredService<IOptions<CollectorOptions>>().Value.Storage.Enabled
         ? ActivatorUtilities.CreateInstance<TimescaleFrameStore>(sp)
@@ -36,4 +42,20 @@ builder.Services.AddSingleton<IFrameStore>(sp =>
 builder.Services.AddHostedService<CollectorService>();
 builder.Services.AddHostedService<StorageWorker>();
 
-await builder.Build().RunAsync();
+WebApplication app = builder.Build();
+
+// ── 웹 대시보드 (P5): 정적 페이지(wwwroot) + REST — 원격/다중 사용자 모니터링 ──
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
+app.MapGet("/api/status", (DashboardState dashboard, LicenseStatus license) => Results.Json(new
+{
+    license = new { mode = license.Mode.ToString(), description = license.Description },
+    serverTimeUtc = DateTime.UtcNow,
+    channels = dashboard.GetStatus(),
+}));
+
+app.MapGet("/api/alerts", (DashboardState dashboard, int? take) =>
+    Results.Json(dashboard.GetAlerts(Math.Clamp(take ?? 50, 1, 200))));
+
+await app.RunAsync();

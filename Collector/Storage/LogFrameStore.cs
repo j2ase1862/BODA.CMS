@@ -1,3 +1,4 @@
+using BODA.CMS.Collector.Dashboard;
 using Microsoft.Extensions.Logging;
 
 namespace BODA.CMS.Collector.Storage
@@ -29,6 +30,13 @@ namespace BODA.CMS.Collector.Storage
 
             _logger.LogInformation("dry-run 플러시: 배치 {Batch}건 — 누적 {Summary}",
                 batch.Count, string.Join(", ", _counts.Select(kv => $"{kv.Key}={kv.Value}")));
+            return Task.CompletedTask;
+        }
+
+        public Task WriteAlertAsync(AlertRecord alert, CancellationToken ct)
+        {
+            _logger.LogInformation("dry-run 알림: [{Robot}/{Channel}] {Severity} {Message}",
+                alert.RobotId, alert.Channel, alert.Severity, alert.Message);
             return Task.CompletedTask;
         }
     }

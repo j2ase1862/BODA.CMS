@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>BODA.CMS — 협동로봇 상태 대시보드</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 24px; background: #14171b; color: #d6e1ec;
+         font-family: 'Segoe UI', 'Malgun Gothic', sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  #license { color: #8a93a0; font-size: 13px; margin-bottom: 20px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+  .card { background: #1b1f24; border: 1px solid #2a2f36; border-radius: 10px; padding: 16px; }
+  .card h2 { font-size: 15px; margin: 0 0 2px; }
+  .sub { color: #8a93a0; font-size: 12px; margin-bottom: 10px; }
+  .row { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
+  .row .k { color: #8a93a0; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
+  .Connected { background: #2ea36f; } .Connecting { background: #d99a2b; }
+  .Faulted { background: #c94f4f; } .Disconnected { background: #5a6470; }
+  .health-good { color: #4fc08d; } .health-warn { color: #e0a836; } .health-bad { color: #e06c6c; }
+  .bar { height: 6px; background: #2a2f36; border-radius: 3px; overflow: hidden; margin-top: 8px; }
+  .bar > div { height: 100%; transition: width .5s; }
+  #alerts { margin-top: 24px; }
+  #alerts h2 { font-size: 15px; }
+  .alert { font-family: Consolas, monospace; font-size: 12.5px; padding: 2px 0; }
+  .Alarm { color: #e06c6c; } .Warning { color: #e0a836; } .Info { color: #4fc08d; }
+  #empty { color: #5a6470; }
+</style>
+</head>
+<body>
+<h1>BODA.CMS — 협동로봇 상태 대시보드</h1>
+<div id="license">연결 중…</div>
+<div class="grid" id="cards"></div>
+<div id="alerts"><h2>알림</h2><div id="alertList"><span id="empty">알림 없음</span></div></div>
+
+<script>
+function healthClass(score) { return score >= 80 ? 'health-good' : score >= 50 ? 'health-warn' : 'health-bad'; }
+function healthColor(score) { return score >= 80 ? '#4fc08d' : score >= 50 ? '#e0a836' : '#e06c6c'; }
+
+async function refresh() {
+  try {
+    const status = await (await fetch('/api/status')).json();
+    document.getElementById('license').textContent =
+      status.license.description + ' · 서버시각 ' + new Date(status.serverTimeUtc).toLocaleTimeString();
+
+    document.getElementById('cards').innerHTML = status.channels.map(c => {
+      const cbm = c.cbm ?? {};
+      const learning = cbm.phase === 'Learning';
+      const health = cbm.healthScore ?? 100;
+      const cbmLine = learning
+        ? `학습 ${Math.round((cbm.learningProgress ?? 0) * 100)}%`
+        : `건강도 <b class="${healthClass(health)}">${health}</b>` +
+          (cbm.activeAlerts ? ` · 알림 ${cbm.activeAlerts} (${cbm.worst ?? ''})` : '');
+      const mlLine = c.ml
+        ? (c.ml.scoredWindows > 0
+            ? (c.ml.activeAlerts ? `<span class="health-bad">이상 ${c.ml.activeAlerts}건 (${c.ml.worst ?? ''})</span>`
+                                 : '<span class="health-good">정상</span>')
+            : '대기')
+        : '모델 없음';
+      return `<div class="card">
+        <h2><span class="dot ${c.state}"></span>${c.robotId} — ${c.displayName}</h2>
+        <div class="sub">${c.vendor}/${c.channel} · ${c.tier} · ${c.state}</div>
+        <div class="row"><span class="k">수집률</span><span>${c.rateHz} Hz (누적 ${c.framesTotal.toLocaleString()})</span></div>
+        <div class="row"><span class="k">CBM</span><span>${cbmLine}</span></div>
+        <div class="row"><span class="k">ML</span><span>${mlLine}</span></div>
+        <div class="bar"><div style="width:${learning ? 0 : health}%;background:${healthColor(health)}"></div></div>
+      </div>`;
+    }).join('');
+
+    const alerts = await (await fetch('/api/alerts?take=40')).json();
+    document.getElementById('alertList').innerHTML = alerts.length
+      ? alerts.map(a => `<div class="alert ${a.severity}">[${new Date(a.atUtc).toLocaleTimeString()}] ` +
+          `[${a.robotId}/${a.channel}] ${a.message}</div>`).join('')
+      : '<span id="empty">알림 없음</span>';
+  } catch (e) {
+    document.getElementById('license').textContent = '수집기 연결 실패: ' + e;
+  }
+}
+refresh();
+setInterval(refresh, 1000);
+</script>
+</body>
+</html>

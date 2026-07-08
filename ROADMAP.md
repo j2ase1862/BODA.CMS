@@ -161,14 +161,15 @@ public sealed class RobotCapabilities
 - [x] 연결 끊김·재연결 복구: 계약에 재연결 시맨틱 명시(Faulted 후 ConnectAsync 재호출 가능), 드라이버 3종 보장 수정(두산 Modbus 연속오류 20회→Faulted·세션 소유 모드, DRFL 핸들 선정리), 지수 백오프 1s→30s 상한.
 - [x] 다중 로봇 동시 수집: `appsettings.json Collector:Robots[]` (RobotId·Vendor·Host·Port·Channels 필터) — 시뮬레이터 2채널로 end-to-end 검증.
 - [ ] 실 TimescaleDB 인스턴스 대상 적재 검증 (개발 PC에 5432 부재 — dry-run으로 파이프라인만 검증됨)
-- [ ] WPF를 Collector 구독 뷰어로 전환 (WebAPI/SignalR 필요 — P5 웹 대시보드와 함께 진행)
+- [x] ~~WPF를 Collector 구독 뷰어로 전환~~ → **웹 대시보드가 원격 다중 로봇 뷰어 역할 수행(P5)**. WPF는 현장 직결 진단 도구로 역할 분리 — 전환 불필요 판단.
 
 ### Phase P2 — 조건기반 감시(CBM) ✅ 1차 완료 (2026-07)
 - [x] **기준선 학습**: `BODA.CMS.Analytics.CbmMonitor` — 1초 집계 → 신호·축별 Welford 평균/σ(기본 60집계 ≈ 1분). 위치/속도는 동작 의존이라 감시 제외, **VendorRaw 원시 신호도 감시**(스케일 미확정인 Basic 채널도 CBM 성립). σ 하한(절대 1e-3 + 상대 1%)으로 상수 신호 과민 알람 방지.
 - [x] **편차·추세 임계값 알림**: 급변(즉시값 z≥4, 디바운스 3회)=Alarm · 드리프트(EWMA z≥3, 디바운스 10회)=Warning · 정상 복귀 시 Info 해제 통지. 채널당 `CbmMonitor` 1개, 공용 프레임만 소비(벤더 무관).
 - [x] **WPF 대시보드 1차**: 카드 건강도 칩(최악 z 기반 0~100 휴리스틱) + CBM 알림 리스트 카드 + 축별 라이브 차트(기존). 시뮬레이터 **결함 주입**(t=100s, J3 토크/전류 +35%·온도 +6℃ 램프)으로 학습→알람→식별(J3) 경로 검증.
-- [ ] 다중 로봇 동시 뷰 — Collector 구독 뷰어 전환과 함께 (P5)
-- [ ] Collector에 CBM 통합 + 알림 DB 저장·통보 채널 — P5 웹 대시보드와 함께
+- [x] 다중 로봇 동시 뷰 — **P5 웹 대시보드로 구현** (채널 카드 그리드 + 통합 알림 스트림)
+- [x] Collector에 CBM 통합 + 알림 DB 저장(`telemetry_alerts`) — **P5에서 구현** (통보 채널(메일/메신저)은 잔여)
+- [ ] 알림 통보 채널 (메일/메신저 webhook) — 고객 요구 시
 - [ ] 기준선 영속화(재시작 시 재학습 생략)·운전 조건별(프로그램/모드) 기준선 분리 — 실 데이터 확보 후
 
 ### Phase P3 — ML 이상탐지 ✅ 1차 완료 (2026-07, 부트스트랩 모델)
@@ -177,7 +178,7 @@ public sealed class RobotCapabilities
 - [x] .NET ONNX Runtime 추론: `Analytics/Ml/OnnxAnomalyScorer` + `MlAnomalyMonitor`(CBM 집계 스트림 구독, 디바운스·자동 해제). 모델 파일 없으면 ML만 꺼진 채 동작.
 - [x] UI/알림 연동: 카드 ML 칩("ML 정상"/"ML 이상 n건") + CBM 알림 리스트 공유(Kind "ML 이상"/"ML 복귀").
 - [ ] 실 데이터 재학습 파이프라인: TimescaleDB → 피처 추출 → 학습 (P1 실 DB 검증 이후)
-- [ ] Collector에 ML 통합(무인 감시 경로) — CBM 통합과 함께
+- [x] Collector에 ML 통합(무인 감시 경로) — **P5에서 구현** (채널당 CBM+ML, 웹 대시보드 노출)
 
 ### Phase P4 — 비전 진단 (바심 차별화, 벤더 무관) ✅ PoC 완료 (2026-07, 합성 씬)
 - [x] **반복정밀도 드리프트·마모 진단 PoC**: `BODA.CMS.Vision` — Otsu+최대블롭 서브픽셀 마커 검출기(합성 씬 실측: 평균 오차 0.03px ≈ 1.5µm@0.05mm/px, 대비 검증으로 무마커 오검출 차단) + `RepeatabilityMonitor`(기준선 학습 → 위치 드리프트 Alarm·지름 감소 마모 Warning — P2와 같은 z-판정). 데모: `tools/VisionPoc` — 드리프트 주입 후 이탈 0.022mm 시점(3~4사이클)에 알람.
@@ -185,10 +186,13 @@ public sealed class RobotCapabilities
 - [ ] 실 카메라 연동: `IMarkerImageSource` 추상화 + 캡처 SDK + px→mm 캘리브레이션 절차 (카메라 확보 후 — 합성 씬과 검출기·감시기는 그대로 재사용)
 - [ ] 피처 레벨 융합(센서+비전 조인트 진단·상호 검증) — 실 데이터 축적 후
 
-### Phase P5 — 제품화
-- [ ] 구독/라이선스 모델 (등급 = capability 자동 판정과 연동)
-- [ ] 웹 대시보드 (ASP.NET Core + Blazor, BODA.VMS.Web 자산 재사용) — 원격/다중 사용자 모니터링
-- [ ] 패키징·배포·업데이트 (드라이버 모듈 단위 배포 검토)
+### Phase P5 — 제품화 ✅ 1차 완료 (2026-07)
+- [x] **구독/라이선스 모델**: RSA-SHA256 서명 라이선스 파일(`license.json`) — `Core.Licensing.LicenseVerifier`. 파일 없음=평가판(전체 기능), 서명 불량/만료=Basic 강등, 정식=등급대로. **등급 게이팅은 capability 자동 판정(§1)과 연동** — WPF(카드 시작 차단)·Collector(채널 미기동) 양쪽 강제. 발급 도구 `tools/LicGen`(init/issue). ⚠️ `dev-keys/`는 개발 서명키 — 운영 발급 키는 저장소 밖 보안 저장소에서 관리하고 Core 공개키 상수 교체.
+- [x] **웹 대시보드**: Collector가 ASP.NET Core 호스트로 승격 — `/api/status`(채널 상태·수집률·CBM/ML 스냅샷)·`/api/alerts` REST + 다크 테마 정적 대시보드(1초 폴링, http://localhost:5100). 다중 로봇·다중 사용자 원격 모니터링. (Blazor/SignalR 스트리밍·BODA.VMS.Web 자산 통합은 후속 — 현 대시보드는 폴링 기반으로 의존성 제로.)
+- [x] **Collector 무인 감시** (P2/P3 잔여 통합): 채널당 CBM+ML 부착, 알림은 대시보드 링(200건) + `telemetry_alerts` 테이블 저장(Storage on 시).
+- [x] **패키징**: `tools/package.ps1` — WPF 앱·Collector를 win-x64 self-contained publish 후 zip (현장 PC에 .NET 설치 불필요, 라이선스는 zip 미포함·고객별 발급). 실측: app 80.5MB / collector 51.3MB.
+- [ ] 자동 업데이트 채널·드라이버 모듈 단위 배포 — 고객 배포 시점에
+- [ ] Blazor/SignalR 실시간 대시보드 + 사용자 인증 — 다중 고객 SaaS화 시점에
 
 ---
 

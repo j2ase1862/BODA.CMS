@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-07-08 (3) — Phase P5: 제품화 1차 (라이선스·웹 대시보드·무인 감시·패키징)
+
+### 요약
+- P5 3기둥 + 앞 단계에서 미뤄둔 Collector 통합 항목(P2 CBM·P3 ML·다중 로봇 뷰)을 한 번에 정리.
+- Collector가 **무인 감시 노드**가 됨: 수집 + CBM/ML 판정 + 알림 저장 + 웹 대시보드 서빙.
+
+### 작업 내용
+- **라이선스** (`Core/Licensing`): RSA-SHA256 서명 `license.json` — payload 원문 바이트 서명(JSON 정규화 이슈 회피). 없음=평가판(전체 기능)/불량·만료=Basic 강등/정식=등급대로. 게이팅은 capability 자동 판정과 연동, WPF(카드)·Collector(채널 기동) 양쪽 강제. `tools/LicGen`(init/issue, 발급 즉시 자가 검증). ⚠️ dev-keys는 개발용 — 운영 키 교체 절차 주석 참조.
+- **Collector 웹화**: Worker → ASP.NET Core(`Microsoft.NET.Sdk.Web`). `DashboardState`(채널 상태·5초 창 수집률·CBM/ML 스냅샷·알림 링 200) + `/api/status`·`/api/alerts` + `wwwroot` 다크 대시보드(1초 폴링, 의존성 제로). 기본 http://localhost:5100.
+- **무인 감시**: 펌프마다 CbmMonitor + MlAnomalyMonitor 부착(WPF와 동일 파이프라인), 알림 → 대시보드 링 + `telemetry_alerts` 테이블(단건 insert, 수집 경로 비차단).
+- **패키징**: `tools/package.ps1` — app/collector win-x64 self-contained zip (실측 80.5/51.3MB). `dist/` gitignore.
+
+### 검증
+- 테스트 +6 (총 44): 서명 왕복, 변조/타키/만료 거부, Trial/Basic 게이팅.
+- 수집기 실기동: sim 2채널 수집(8/49Hz) + CBM Monitoring(건강도) + ML(스코어링 1,400윈도) → REST 응답 확인, headless Edge로 대시보드 렌더 캡처(카드 그리드 + 색상 알림 스트림).
+- LicGen 발급 스모크: Pro/2027-12-31 발급 → Core 검증기 Licensed 판정.
+
+### 메모
+- 부트스트랩 ML 모델이 시뮬레이터 온도 사이클에 경계선 점수(-0.17 vs 임계 -0.157)로 간헐 Warning — 실 데이터 재학습 시 임계 재캘리브레이션 대상(이미 잔여 항목).
+
+---
+
 ## 2026-07-08 (2) — Phase P4: 비전 진단 PoC (합성 씬)
 
 ### 요약

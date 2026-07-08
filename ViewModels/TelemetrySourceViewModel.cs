@@ -53,13 +53,17 @@ namespace BODA.CMS.ViewModels
         private string _mlText = "";
         private Brush _mlBrush = Brushes.Gray;
 
+        private readonly Func<ProductTier, bool>? _canUseTier;
+
         public TelemetrySourceViewModel(
             IRobotTelemetrySource source, Func<string> getHost, Action<string> log,
-            Action<string, CbmAlert>? onCbmAlert = null)
+            Action<string, CbmAlert>? onCbmAlert = null,
+            Func<ProductTier, bool>? canUseTier = null)
         {
             _source = source;
             _getHost = getHost;
             _log = log;
+            _canUseTier = canUseTier;
             _port = source.Capabilities.DefaultPort.ToString(CultureInfo.InvariantCulture);
 
             ToggleCommand = new AsyncRelayCommand(ToggleAsync);
@@ -157,6 +161,15 @@ namespace BODA.CMS.ViewModels
             if (IsRunning)
             {
                 await StopAsync();
+                return;
+            }
+
+            // 라이선스 게이팅 (P5) — 등급은 capability 자동 판정과 연동.
+            if (_canUseTier is not null && !_canUseTier(Tier))
+            {
+                Status = "라이선스 등급 초과";
+                StatusBrush = Brushes.OrangeRed;
+                _log($"[{Title}] 라이선스 등급으로 {Tier} 채널을 사용할 수 없습니다 — 업그레이드 필요.");
                 return;
             }
 

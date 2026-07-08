@@ -1,4 +1,7 @@
-﻿using System.Windows;
+﻿using System;
+using System.IO;
+using System.Windows;
+using BODA.CMS.Core.Licensing;
 using BODA.CMS.Core.Telemetry;
 using BODA.CMS.Drivers.Doosan;
 using BODA.CMS.Drivers.Simulated;
@@ -32,7 +35,10 @@ namespace BODA.CMS
                     new SimulatedRobotSource("pro", "가상 Pro (네이티브 모사)", rateHz: 100, deep: true, faultStartSeconds: 100),
                 }),
             };
-            DataContext = new MainViewModel(modbus, vendors);
+            // 라이선스 (P5): exe 옆 license.json — 없으면 평가판, 불량/만료면 Basic 강등.
+            LicenseStatus license = LicenseVerifier.Load(Path.Combine(AppContext.BaseDirectory, "license.json"));
+
+            DataContext = new MainViewModel(modbus, vendors, license);
         }
     }
 }

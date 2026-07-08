@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- 라이선스 발급 도구 (사내용 — 고객 배포 금지).
+       init: RSA 키쌍 생성 / issue: 라이선스 파일 서명 발급. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>LicGen</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Core\BODA.CMS.Core.csproj" />
+  </ItemGroup>
+
+</Project>
