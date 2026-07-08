@@ -4,6 +4,7 @@ using System.Windows;
 using BODA.CMS.Core.Licensing;
 using BODA.CMS.Core.Telemetry;
 using BODA.CMS.Drivers.Doosan;
+using BODA.CMS.Drivers.Jaka;
 using BODA.CMS.Drivers.Simulated;
 using BODA.CMS.Comms;
 using BODA.CMS.ViewModels;
@@ -27,7 +28,12 @@ namespace BODA.CMS
                     new DoosanModbusSource(modbus),   // 범용 채널 → Basic
                     new DoosanDrflSource(),           // 네이티브 채널 → Pro
                 }),
-                // JAKA·Rokae: Drivers.{Vendor} 구현 후 여기에 등록 (ROADMAP §5.2~5.3)
+                new VendorDescriptor("jaka", "JAKA", () => new IRobotTelemetrySource[]
+                {
+                    new JakaJsonSource(),    // 네이티브 모니터 스트림(수신 전용) → 실기 확정 전 Basic
+                    // Modbus 채널: 실기 프로브로 레지스터 맵 검증 후 추가 (§5.2)
+                }),
+                // Rokae: Drivers.Rokae 구현 후 여기에 등록 (ROADMAP §5.3)
                 new VendorDescriptor("sim", "시뮬레이터 (가상 데이터)", () => new IRobotTelemetrySource[]
                 {
                     new SimulatedRobotSource("basic", "가상 Basic (범용 모사)", rateHz: 10, deep: false),

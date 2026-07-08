@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- JAKA 실기 프로브 (ROADMAP §6 3단계) — 모니터 스트림(TCP 10000) 덤프 + 신호 후보 열거.
+       전부 수신 전용/패시브 — 명령 포트(10001)에 아무것도 보내지 않는다. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>JakaProbe</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Drivers\Jaka\BODA.CMS.Drivers.Jaka.csproj" />
+  </ItemGroup>
+
+</Project>

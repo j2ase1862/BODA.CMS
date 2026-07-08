@@ -5,6 +5,7 @@ using BODA.CMS.Comms;
 using BODA.CMS.Core.Licensing;
 using BODA.CMS.Core.Telemetry;
 using BODA.CMS.Drivers.Doosan;
+using BODA.CMS.Drivers.Jaka;
 using BODA.CMS.Drivers.Simulated;
 using Microsoft.Extensions.Options;
 
@@ -25,6 +26,10 @@ builder.Services.AddSingleton(new VendorDescriptor("doosan", "두산로보틱스
         new DoosanModbusSource(modbus, ownsConnection: true), // 범용 채널 → Basic
         new DoosanDrflSource(),                               // 네이티브 채널 → Pro
     };
+}));
+builder.Services.AddSingleton(new VendorDescriptor("jaka", "JAKA", () => new IRobotTelemetrySource[]
+{
+    new JakaJsonSource(), // 네이티브 모니터 스트림(수신 전용) — 실기 확정 전 Basic. Modbus 채널은 §5.2 잔여.
 }));
 builder.Services.AddSingleton(new VendorDescriptor("sim", "시뮬레이터", () => new IRobotTelemetrySource[]
 {

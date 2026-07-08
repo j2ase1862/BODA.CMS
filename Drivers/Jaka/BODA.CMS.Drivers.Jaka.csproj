@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- JAKA 벤더 드라이버 모듈 (ROADMAP §5.2 — 2호 벤더).
+       1차 채널: 컨트롤러 모니터 스트림(TCP 10000, JSON 브로드캐스트 수신 전용 — 구조적 비개입).
+       Modbus 채널은 실기 프로브로 레지스터 맵 검증 후 추가 (두산과 동일 절차, §6). -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>BODA.CMS.Drivers.Jaka</RootNamespace>
+    <AssemblyName>BODA.CMS.Drivers.Jaka</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Core\BODA.CMS.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BODA.CMS.Tests" />
+    <InternalsVisibleTo Include="JakaProbe" />
+  </ItemGroup>
+
+</Project>
