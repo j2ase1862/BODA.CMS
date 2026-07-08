@@ -1,4 +1,4 @@
-using BODA.CMS.Collector;
+﻿using BODA.CMS.Collector;
 using BODA.CMS.Collector.Dashboard;
 using BODA.CMS.Collector.Storage;
 using BODA.CMS.Comms;
@@ -9,7 +9,18 @@ using BODA.CMS.Drivers.Jaka;
 using BODA.CMS.Drivers.Simulated;
 using Microsoft.Extensions.Options;
 
-WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+// Windows 서비스로 실행되면 작업 디렉터리가 System32라 appsettings.json 을 못 찾는다 —
+// 콘텐츠 루트를 exe 위치로 고정 (콘솔 실행에도 무해).
+WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = AppContext.BaseDirectory,
+});
+
+// Windows 서비스 지원 (P5): 실제 서비스로 실행될 때만 배선 — 콘솔 실행은 완전히 기존과 동일
+// (무조건 호출하면 콘솔 모드에도 EventLog 로거가 끼어든다). 등록: tools/install-service.ps1.
+if (Microsoft.Extensions.Hosting.WindowsServices.WindowsServiceHelpers.IsWindowsService())
+    builder.Services.AddWindowsService(options => options.ServiceName = "BODA.CMS.Collector");
 
 builder.Services.Configure<CollectorOptions>(builder.Configuration.GetSection("Collector"));
 

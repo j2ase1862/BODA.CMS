@@ -4,6 +4,22 @@
 
 ---
 
+## 2026-07-08 (8) — Collector Windows 서비스 지원 + 기동 블록 결함 수정
+
+### 작업 내용
+- **Windows 서비스 지원**: `Microsoft.Extensions.Hosting.WindowsServices` — 실제 서비스로 실행될 때만 배선(`WindowsServiceHelpers.IsWindowsService()` 가드 — 무조건 호출하면 콘솔 모드에 EventLog 로거가 끼어듦). 서비스 실행 시 CWD가 System32라 appsettings를 못 찾는 문제 → `ContentRootPath = AppContext.BaseDirectory` 고정.
+- **`tools/install-service.ps1`**: 설치/제거(-Uninstall)/시작 — 관리자 체크, `delayed-auto` 시작(부팅 직후 네트워크 준비 전 기동 실패 회피), 비정상 종료 시 자동 재시작(10s/30s/60s), 이벤트 뷰어 로그 안내. 운영은 `-ExePath`로 배포 폴더 exe 지정 권장.
+- **기동 블록 결함 발견·수정** (서비스 검증 중 발견): ONNX InferenceSession 콜드 로드가 **10~15초** 걸리는데(웜 캐시면 1~2초 — P5 데모에서 못 본 이유) 이것이 기동 경로를 막고 있었다:
+  - Collector: 펌프의 ML 로드가 `StartAsync`를 블록 → Kestrel 바인딩 15초 지연(서비스 SCM 타임아웃 위험) → `RunPumpAsync` 진입 즉시 `Task.Yield()`로 스레드풀 양보. **수정 후 바인딩 2초 내.**
+  - WPF: 카드 VM 생성자에서 UI 스레드 ML 로드 → 앱 첫 기동 프리즈(과거 "창이 늦게 뜨던" 원인) → 백그라운드 로드 후 배선("ML 로드 중…" 표시), volatile 공개.
+- **잡초 제거**: 자동 생성돼 커밋에 섞였던 `Collector/Properties/launchSettings.json` 삭제 — `dotnet run`의 포트를 무작위(56624/56625)로 가로채 appsettings `Urls`(5100)를 무시하게 만들던 원인.
+
+### 검증
+- 빌드 경고 0, 테스트 54/54. exe 직접 기동: 2초 내 5100 바인딩, ONNX 로드 완료 후 basic/pro 채널 + ML 부착 확인.
+- 서비스 설치 실행 테스트는 미수행(현재 셸이 관리자 아님) — 관리자 PowerShell에서 `tools\install-service.ps1` 실행으로 등록.
+
+---
+
 ## 2026-07-08 (7) — 현장용 간단 사용설명서 (HTML)
 
 - `docs/사용설명서.html` — 자체 완결형(외부 의존성 없음, 인쇄 친화) 현장 사용자 매뉴얼.

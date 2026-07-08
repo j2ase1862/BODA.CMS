@@ -91,6 +91,10 @@ namespace BODA.CMS.Collector
 
         private async Task RunPumpAsync(RobotOptions robot, IRobotTelemetrySource source, CancellationToken ct)
         {
+            // 즉시 스레드풀로 양보 — 아래 ONNX 세션 로드(콜드 스타트 10초+ 실측)가
+            // StartAsync를 막아 Kestrel(웹 대시보드) 바인딩과 서비스 기동을 지연시키지 않게 한다.
+            await Task.Yield();
+
             string channel = source.Capabilities.ChannelId;
             string tag = $"{robot.RobotId}/{channel}";
             var endpoint = new RobotEndpoint(robot.Host, robot.Port);
