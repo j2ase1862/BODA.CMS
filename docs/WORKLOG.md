@@ -4,6 +4,24 @@
 
 ---
 
+## 2026-07-08 (10) — 실기 데이터 축적 개시 (TimescaleDB) + ML 재학습 스크립트
+
+### 작업 내용
+- **실기 전환 후 대시보드가 시뮬레이터 데이터를 보이던 원인**: Collector `appsettings.json`의 `Robots`가 `sim`으로 남아 있었음 — 웹 대시보드는 WPF 앱이 아니라 Collector가 자기 설정대로 수집한 것을 보여준다. 소스 appsettings도 실행본과 동일하게 `doosan-01`(192.168.1.100)로 정렬(재빌드 시 sim으로 회귀 방지) + `Storage.Enabled: true`.
+- **저장 인프라 구축(현장 PC)**: PostgreSQL 17 winget 무인 설치 → `boda_cms` DB → TimescaleDB 2.28.1(PG17용 공식 zip, 수동 배치: lib/extension 복사 + `ALTER SYSTEM SET shared_preload_libraries`) → `CREATE EXTENSION` → 기존 `telemetry_frames`를 `migrate_data => TRUE`로 hypertable 전환(무중단 — StorageWorker가 PG 재시작 동안 배치 보존·재시도로 자가 복구함을 실확인). drfl+modbus 2채널 적재 검증.
+- **`tools/ml/retrain_anomaly.py`**: 실 데이터 재학습 스크립트(부트스트랩 대체). 런타임 z-파이프라인 재현 — 1초 버킷 평균(SQL `unnest WITH ORDINALITY`, modbus는 `vendor_raw` jsonb 배열 키까지) → 수집 공백 기준 세그먼트 분리 → 세그먼트별 첫 60집계 기준선 + σ 하한(1e-3, 0.01·|μ|) → z → 10집계 윈도 6피처. 합성 정상 blend 옵션(기본 25%) — 실 데이터가 못 본 정상 형태 과잉 탐지 완화. ONNX+사이드카 export는 부트스트랩과 동일 규약.
+
+### 발견/검증
+- **기준선 캡처 타이밍이 판정 품질을 지배**: STANDBY 중 재시작 → 기준선이 정지 신호로 학습 → 가동 시 z 800~1500 폭주(오탐). 가동 중 재시작으로 해소 확인. 사용 규약: **로봇이 정상 사이클을 도는 중에 모니터링을 시작할 것**.
+- **부트스트랩 모델의 평탄 신호 사각지대 실증**: J6 토크/외란 ML 플래핑(score -0.17~-0.24 vs 임계 -0.157, 수십 초 주기 발생↔복귀) — 실측은 J6 토크 -0.16±0.03 Nm 완전 평탄, CBM 건강도 100. 거의 상수 신호의 양자화 계단 z-궤적을 합성 AR(1) 모델이 낯설어하는 것. 실 데이터 재학습으로 해소 예정.
+- 재학습 스크립트 스모크 테스트(실 DB ~1h, `--out` 임시 폴더): 시리즈 42개(drfl 5신호×6축 + modbus 2신호×6축), 윈도 30,132개, ONNX↔sklearn 점수 오차 0.000000.
+
+### 남은 것
+- 정상 운전 데이터 1일+ 축적 후 `retrain_anomaly.py --since <가동시각>` 실행 → bin의 `models/` 교체 → 재시작.
+- 보존 정책 미설정 — 장기 운영 전 `add_retention_policy` 결정 필요.
+
+---
+
 ## 2026-07-08 (9) — 사용설명서에 운영 배포 섹션 추가
 
 - `docs/사용설명서.html`에 **§10 관리자용 — 감시 서버 설치·운영**(설비/IT 담당자 대상) 추가:
