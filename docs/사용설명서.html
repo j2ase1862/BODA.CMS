@@ -52,6 +52,7 @@
     <li><a href="#web">사무실에서 원격으로 보기 (웹 대시보드)</a></li>
     <li><a href="#faq">문제가 생겼을 때</a></li>
     <li><a href="#words">용어 사전 — 화면 표기 ↔ 쉬운 말</a></li>
+    <li><a href="#deploy">관리자용 — 감시 서버 설치·운영</a> <small>(설비/IT 담당자)</small></li>
   </ol>
 </nav>
 
@@ -204,6 +205,62 @@
   <tr><td><b>토크(Nm)</b></td><td>관절이 내는 힘</td><td>무리하면 커짐 — 마모·부하 이상의 핵심 지표</td></tr>
   <tr><td><b>~_raw</b></td><td>원시 숫자</td><td>단위 환산 전의 값 — 크기보다 변화 추세를 보는 용도</td></tr>
   <tr><td><b>J1~J6</b></td><td>1~6번 관절</td><td>로봇 바닥(J1)부터 손목(J6)까지의 회전축</td></tr>
+</table>
+
+<h2 id="deploy">10. 관리자용 — 감시 서버 설치·운영 <small>(설비/IT 담당자)</small></h2>
+
+<p>프로그램은 두 가지입니다. 역할이 다릅니다:</p>
+<table>
+  <tr><th>프로그램</th><th>역할</th><th>어디에</th></tr>
+  <tr><td><b>BODA.CMS</b> (모니터 화면)</td><td>사람이 보면서 진단하는 화면 프로그램</td><td>현장/사무실 PC — 필요할 때 실행</td></tr>
+  <tr><td><b>BODA.CMS.Collector</b> (감시 서버)</td><td>사람이 없어도 <b>24시간</b> 데이터 수집·기록·이상 감시 + 웹 대시보드 제공</td><td>공장 내 상시 가동 PC 1대 — Windows 서비스로 등록</td></tr>
+</table>
+
+<h3>설치 순서 (감시 서버)</h3>
+
+<div class="step"><b class="no">1</b><b>설치 파일 준비</b><br>
+공급사에서 받은 <code>BODA.CMS-collector-버전-win-x64.zip</code>을
+고정 폴더(예: <code>C:\BODA\collector</code>)에 풉니다.
+<span class="tip">💡 .NET 등 별도 프로그램 설치가 필요 없습니다 — 압축만 풀면 됩니다.</span></div>
+
+<div class="step"><b class="no">2</b><b>감시할 로봇 등록</b><br>
+푼 폴더의 <code>appsettings.json</code>을 메모장으로 열어 <code>Robots</code> 부분에 로봇을 적습니다:
+<pre style="background:#f0f3f7; padding:10px 14px; border-radius:6px; font-size:13px">"Robots": [
+  { "RobotId": "1라인-두산-01", "Vendor": "doosan", "Host": "192.168.1.100" },
+  { "RobotId": "2라인-두산-02", "Vendor": "doosan", "Host": "192.168.1.101" }
+]</pre>
+<code>RobotId</code>는 대시보드에 표시될 이름(자유), <code>Vendor</code>는 제조사 코드(doosan / jaka / sim),
+<code>Host</code>는 로봇 컨트롤러 IP입니다. 여러 대를 쉼표로 이어 적으면 동시에 감시합니다.</div>
+
+<div class="step"><b class="no">3</b><b>라이선스 배치 (구매한 경우)</b><br>
+받은 <code>license.json</code> 파일을 exe 옆에 복사합니다. 없으면 평가판으로 동작하며,
+파일이 잘못되거나 기한이 지나면 기본(Basic) 기능만 동작합니다.</div>
+
+<div class="step"><b class="no">4</b><b>Windows 서비스로 등록</b><br>
+<b>관리자 권한</b> PowerShell에서:
+<pre style="background:#f0f3f7; padding:10px 14px; border-radius:6px; font-size:13px">powershell -File tools\install-service.ps1 -ExePath "C:\BODA\collector\BODA.CMS.Collector.exe"</pre>
+등록되면 즉시 시작되고, 이후 <b>PC를 재부팅해도 자동으로 다시 시작</b>됩니다.
+프로그램이 비정상 종료돼도 스스로 재시작합니다(10초→30초→60초 간격).</div>
+
+<div class="step"><b class="no">5</b><b>동작 확인</b><br>
+같은 PC 브라우저에서 <code>http://localhost:5100</code> — 로봇 카드가 보이면 성공.
+서비스 상태는 <code>services.msc</code>에서 "BODA.CMS.Collector"가 <b>실행 중</b>인지 확인.</div>
+
+<h3>다른 PC에서 대시보드 열기</h3>
+<p>기본 설정은 보안을 위해 <b>그 PC 안에서만</b> 열립니다. 사무실 등 다른 PC에서 보려면:</p>
+<div class="step"><b class="no">1</b><code>appsettings.json</code> 맨 위를 <code>"Urls": "http://0.0.0.0:5100"</code>으로 수정 후 서비스 재시작.</div>
+<div class="step"><b class="no">2</b>관리자 PowerShell에서 방화벽 허용:
+<pre style="background:#f0f3f7; padding:10px 14px; border-radius:6px; font-size:13px">netsh advfirewall firewall add rule name="BODA.CMS Dashboard" dir=in action=allow protocol=TCP localport=5100</pre></div>
+<div class="warn">⚠️ 대시보드에는 아직 로그인이 없습니다 — <b>공장 내부망까지만</b> 여세요. 인터넷에 직접 노출 금지.</div>
+
+<h3>일상 운영</h3>
+<table>
+  <tr><th>하고 싶은 일</th><th>방법</th></tr>
+  <tr><td>설정 변경 반영</td><td><code>appsettings.json</code> 수정 → <code>services.msc</code>에서 서비스 <b>다시 시작</b></td></tr>
+  <tr><td>동작 기록(로그) 보기</td><td>Windows <b>이벤트 뷰어</b> → Windows 로그 → 응용 프로그램 → 원본 "BODA.CMS.Collector"</td></tr>
+  <tr><td>프로그램 업데이트</td><td>서비스 <b>중지</b> → 폴더의 파일을 새 버전으로 교체(설정 파일은 유지) → 서비스 <b>시작</b></td></tr>
+  <tr><td>서비스 제거</td><td>관리자 PowerShell: <code>powershell -File tools\install-service.ps1 -Uninstall</code></td></tr>
+  <tr><td>데이터 저장(DB) 켜기</td><td><code>appsettings.json</code>의 <code>Storage:Enabled</code>를 <code>true</code>로 + DB 접속 문자열 설정 (TimescaleDB 필요 — 공급사 문의)</td></tr>
 </table>
 
 <footer>BODA.CMS 간단 사용설명서 · 2026-07 · 기술 문의: 설비/보전 담당자 또는 공급사</footer>
