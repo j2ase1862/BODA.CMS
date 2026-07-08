@@ -18,7 +18,7 @@
 
 ### 남은 것
 - 정상 운전 데이터 1일+ 축적 후 `retrain_anomaly.py --since <가동시각>` 실행 → bin의 `models/` 교체 → 재시작.
-- 보존 정책 미설정 — 장기 운영 전 `add_retention_policy` 결정 필요.
+- ~~보존 정책 미설정~~ → `add_retention_policy('telemetry_frames', '30 days')` 적용(job 1000, 일 1회 실행 — 30일 지난 청크 자동 삭제). `telemetry_alerts`는 일반 테이블(저빈도)이라 정책 밖.
 
 ---
 
