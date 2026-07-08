@@ -21,6 +21,7 @@
     <ProjectReference Include="..\..\BODA.CMS.csproj" />
     <ProjectReference Include="..\..\Collector\BODA.CMS.Collector.csproj" />
     <ProjectReference Include="..\..\Analytics\BODA.CMS.Analytics.csproj" />
+    <ProjectReference Include="..\..\Vision\BODA.CMS.Vision.csproj" />
   </ItemGroup>
 
 </Project>

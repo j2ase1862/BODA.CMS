@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- P4 비전 진단 PoC 콘솔 — 합성 씬으로 반복정밀도 드리프트/마모 시나리오를 구동한다.
+       (실 카메라 없이 파이프라인 검증. 앱 빌드에는 포함되지 않음 — tools/ 규칙.) -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>VisionPoc</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Vision\BODA.CMS.Vision.csproj" />
+  </ItemGroup>
+
+</Project>

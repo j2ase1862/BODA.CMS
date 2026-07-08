@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- 비전 진단 모듈 (ROADMAP §4 P4 — 바심 차별화, 벤더 무관).
+       PoC 범위: 마커 서브픽셀 검출 + 반복정밀도 드리프트/마모 감시. 외부 비전 라이브러리 없이
+       순수 C# — 카메라 캡처는 후속(실 카메라 SDK 연동 시 IMarkerImageSource 형태로 추상화 예정). -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>BODA.CMS.Vision</RootNamespace>
+    <AssemblyName>BODA.CMS.Vision</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- RunningStats(기준선)·CbmAlert(알림 융합) 재사용 — 비전도 같은 알림 채널로 흐른다. -->
+    <ProjectReference Include="..\Analytics\BODA.CMS.Analytics.csproj" />
+  </ItemGroup>
+
+</Project>
