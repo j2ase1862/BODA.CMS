@@ -16,7 +16,8 @@
 
 ### 검증
 - 빌드 경고 0, 테스트 54/54. exe 직접 기동: 2초 내 5100 바인딩, ONNX 로드 완료 후 basic/pro 채널 + ML 부착 확인.
-- 서비스 설치 실행 테스트는 미수행(현재 셸이 관리자 아님) — 관리자 PowerShell에서 `tools\install-service.ps1` 실행으로 등록.
+- **실 서비스 설치 테스트 완료**(UAC 승격): 설치→Running(세션 0, StartType Automatic/delayed)→API 200·수집/CBM/ML 동작→이벤트 뷰어에 "Service started successfully"+앱 로그 기록→제거까지 왕복 확인.
+- 서비스 테스트가 결함 하나 더 발견: **wwwroot가 빌드 출력에 미복사**(Web SDK는 publish 때만) → bin에서 exe/서비스 실행 시 대시보드 404. csproj `Content Update` 복사로 수정 — 빌드 출력 실행도 index 200 확인. (배포 zip은 publish 경로라 원래 정상이었음.)
 
 ---
 

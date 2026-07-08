@@ -39,4 +39,10 @@
     </None>
   </ItemGroup>
 
+  <!-- 대시보드 정적 파일: Web SDK 기본은 publish 때만 wwwroot 복사 —
+       빌드 출력(bin)에서 exe/서비스로 직접 실행해도 서빙되도록 빌드에도 복사한다. -->
+  <ItemGroup>
+    <Content Update="wwwroot\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
