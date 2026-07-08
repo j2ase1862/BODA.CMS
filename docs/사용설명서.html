@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BODA.CMS 간단 사용설명서 — 현장용</title>
+<style>
+  body { font-family: 'Malgun Gothic', 'Segoe UI', sans-serif; line-height: 1.75; color: #2b3138;
+         max-width: 860px; margin: 0 auto; padding: 28px 20px 80px; background: #fafbfc; }
+  h1 { font-size: 26px; border-bottom: 3px solid #2d6cdf; padding-bottom: 10px; }
+  h1 small { font-size: 14px; color: #8a93a0; font-weight: normal; margin-left: 10px; }
+  h2 { font-size: 20px; margin-top: 44px; padding: 8px 14px; background: #eef3fb;
+       border-left: 5px solid #2d6cdf; border-radius: 4px; }
+  h3 { font-size: 16px; margin-top: 26px; color: #1b4faa; }
+  table { border-collapse: collapse; width: 100%; margin: 14px 0; background: white; }
+  th, td { border: 1px solid #d8dee6; padding: 9px 12px; text-align: left; vertical-align: top; font-size: 14px; }
+  th { background: #f0f3f7; }
+  .step { background: white; border: 1px solid #e2e5ea; border-radius: 8px; padding: 14px 18px; margin: 12px 0; }
+  .step b.no { display: inline-block; background: #2d6cdf; color: white; border-radius: 50%;
+               width: 24px; height: 24px; text-align: center; line-height: 24px; margin-right: 8px; font-size: 13px; }
+  .tip { background: #f0f7f1; border-left: 4px solid #2ea36f; padding: 10px 14px; border-radius: 4px; margin: 12px 0; font-size: 14px; }
+  .warn { background: #fdf3e7; border-left: 4px solid #d99a2b; padding: 10px 14px; border-radius: 4px; margin: 12px 0; font-size: 14px; }
+  .dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 5px; vertical-align: baseline; }
+  .green { background: #2ea36f; } .orange { background: #d99a2b; } .red { background: #c94f4f; } .gray { background: #8a93a0; }
+  .badge { display: inline-block; padding: 1px 9px; border-radius: 10px; font-size: 12.5px; font-weight: bold; color: white; }
+  .b-green { background: #2ea36f; } .b-orange { background: #d99a2b; } .b-red { background: #c94f4f; } .b-blue { background: #2d6cdf; }
+  code { background: #eef1f5; padding: 1px 6px; border-radius: 4px; font-size: 13px; }
+  nav { background: white; border: 1px solid #e2e5ea; border-radius: 8px; padding: 14px 20px; margin: 18px 0; }
+  nav a { color: #2d6cdf; text-decoration: none; }
+  nav li { margin: 3px 0; }
+  footer { margin-top: 60px; color: #8a93a0; font-size: 12.5px; border-top: 1px solid #e2e5ea; padding-top: 12px; }
+  @media print { body { background: white; } h2 { break-after: avoid; } .step, table { break-inside: avoid; } }
+</style>
+</head>
+<body>
+
+<h1>BODA.CMS 간단 사용설명서 <small>현장용 · 로봇 건강 지킴이</small></h1>
+
+<p><b>BODA.CMS</b>는 협동로봇의 상태를 <b>로봇 작업을 전혀 방해하지 않고</b> 지켜보다가,
+평소와 다른 점이 생기면 <b>고장 나기 전에 미리 알려주는</b> 프로그램입니다.
+로봇에 아무 프로그램도 설치하지 않으며, 데이터를 읽기만 합니다.</p>
+
+<nav>
+  <b>목차</b>
+  <ol>
+    <li><a href="#start">시작하기 — 3분이면 됩니다</a></li>
+    <li><a href="#screen">화면 읽는 법</a></li>
+    <li><a href="#health">건강 점수 이해하기 (화면의 "CBM")</a></li>
+    <li><a href="#ai">AI 이상 감지 이해하기 (화면의 "ML")</a></li>
+    <li><a href="#alerts">알림이 뜨면 이렇게 하세요</a></li>
+    <li><a href="#chart">차트 보는 법</a></li>
+    <li><a href="#web">사무실에서 원격으로 보기 (웹 대시보드)</a></li>
+    <li><a href="#faq">문제가 생겼을 때</a></li>
+    <li><a href="#words">용어 사전 — 화면 표기 ↔ 쉬운 말</a></li>
+  </ol>
+</nav>
+
+<h2 id="start">1. 시작하기 — 3분이면 됩니다</h2>
+
+<div class="step"><b class="no">1</b><b>프로그램 실행</b><br>
+바탕화면의 <code>BODA.CMS</code>를 실행합니다.</div>
+
+<div class="step"><b class="no">2</b><b>제조사 선택</b><br>
+맨 위 <b>제조사</b> 목록에서 우리 로봇의 제조사(두산, JAKA 등)를 고릅니다.<br>
+<span class="tip">💡 로봇 없이 연습하고 싶으면 <b>"시뮬레이터 (가상 데이터)"</b>를 고르세요 —
+가짜 로봇이 움직이며 모든 기능을 체험할 수 있습니다.</span></div>
+
+<div class="step"><b class="no">3</b><b>IP 주소 입력</b><br>
+로봇 컨트롤러의 IP 주소를 입력합니다. (모르면 설비 담당자에게 문의 —
+두산 기본값은 <code>192.168.137.100</code>)</div>
+
+<div class="step"><b class="no">4</b><b>모니터링 시작</b><br>
+카드마다 있는 <span class="badge b-blue">모니터링 시작</span> 버튼을 누릅니다.
+상태등이 <span class="dot green"></span>초록으로 바뀌고 숫자가 움직이면 성공입니다.</div>
+
+<div class="step"><b class="no">5</b><b>이제 그냥 두면 됩니다</b><br>
+약 1분간 로봇의 "평소 상태"를 스스로 학습한 뒤(카드에 <i>CBM 학습 %</i> 표시),
+자동으로 감시가 시작됩니다. 이상이 생기면 화면 아래 <b>알림</b>에 나타납니다.</div>
+
+<div class="warn">⚠️ 이 프로그램은 <b>보기만</b> 합니다. 로봇을 움직이거나 멈추게 할 수 없으므로
+켜 둔 채로 생산을 계속해도 안전합니다.</div>
+
+<h2 id="screen">2. 화면 읽는 법</h2>
+
+<h3>카드 한 장 = 데이터 연결선 하나</h3>
+<p>로봇 한 대에서 데이터를 받아오는 길이 보통 두 개 있습니다(예: 두산 Modbus / 두산 DRFL).
+길마다 카드가 한 장씩 생기며, 카드 제목 옆 괄호는 다음 뜻입니다:</p>
+<table>
+  <tr><th>표기</th><th>뜻</th></tr>
+  <tr><td><b>Basic / Pro</b></td><td>이 연결선으로 받을 수 있는 데이터의 <b>상세함 등급</b>.
+      Basic = 기본(위치 중심), Pro = 상세(관절별 힘·전류까지). 프로그램이 자동으로 판별합니다.</td></tr>
+  <tr><td><b>10Hz / 100Hz</b></td><td>1초에 데이터를 받아오는 횟수.</td></tr>
+  <tr><td><b>패시브</b></td><td>"읽기 전용" — 로봇 작업을 방해하지 않는다는 표시입니다.</td></tr>
+</table>
+
+<h3>상태등 색깔</h3>
+<table>
+  <tr><th>색</th><th>뜻</th><th>조치</th></tr>
+  <tr><td><span class="dot gray"></span>회색</td><td>대기 중</td><td>모니터링 시작을 누르세요</td></tr>
+  <tr><td><span class="dot orange"></span>주황</td><td>연결하는 중</td><td>잠시 기다리세요</td></tr>
+  <tr><td><span class="dot green"></span>초록</td><td>정상 수신 중</td><td>-</td></tr>
+  <tr><td><span class="dot red"></span>빨강</td><td>연결이 끊김/실패</td><td><a href="#faq">8장 문제 해결</a> 참조</td></tr>
+</table>
+
+<h3>숫자 표와 체크박스</h3>
+<p>검은 판에 관절(J1~J6)별 숫자가 실시간으로 표시됩니다. 표 위의 체크박스로
+보고 싶은 항목만 골라 볼 수 있습니다. <code>~_raw</code>가 붙은 항목은 아직 단위 환산 전의
+"원시 숫자"라서 값 자체보다 <b>변화 추세</b>를 보는 용도입니다.</p>
+
+<div class="tip">💡 화면 곳곳의 <b>물음표(?) 아이콘</b>을 누르면 해당 항목의 자세한 설명이 바로 열립니다.</div>
+
+<h2 id="health">3. 건강 점수 이해하기 <small>(화면의 "CBM")</small></h2>
+
+<p>쉽게 말해 <b>"로봇의 평소 몸 상태를 외워뒀다가, 평소와 다르면 알려주는 기능"</b>입니다.
+화면에는 <b>CBM</b>이라고 표시됩니다.</p>
+
+<div class="step"><b class="no">1</b>모니터링을 시작하면 약 1분간 <b>평소 상태를 학습</b>합니다. (카드에 "CBM 학습 %" 표시)<br>
+<span class="warn" style="display:block; margin-top:8px">⚠️ 학습하는 1분 동안은 로봇이 <b>정상적으로 작업 중</b>이어야 합니다.
+고장 난 상태로 학습하면 그 상태를 "평소"로 외워버립니다.</span></div>
+
+<div class="step"><b class="no">2</b>학습이 끝나면 <b>건강 점수(0~100점)</b>가 표시됩니다:<br><br>
+<span class="badge b-green">80~100점</span> 평소와 같음 — 안심 &nbsp;
+<span class="badge b-orange">50~79점</span> 평소와 조금 다름 — 지켜보기 &nbsp;
+<span class="badge b-red">0~49점</span> 평소와 많이 다름 — 알림 확인!</div>
+
+<div class="step"><b class="no">3</b>점수가 낮아지면 <b>어느 관절의 어떤 값</b>이 문제인지 함께 표시됩니다.
+예: <code>J3 전류A z=4.2</code> = "3번 관절의 전류가 평소 범위를 4.2배 벗어남".</div>
+
+<h2 id="ai">4. AI 이상 감지 이해하기 <small>(화면의 "ML")</small></h2>
+
+<p>건강 점수가 "값이 평소보다 큰가/작은가"를 본다면, AI 이상 감지는
+<b>"값이 움직이는 모양새가 평소와 다른가"</b>를 봅니다 — 떨림, 출렁임, 계단처럼 튀는 패턴 등
+사람이 숫자만 봐서는 놓치기 쉬운 변화를 잡아냅니다. 화면에는 <b>ML</b>로 표시됩니다.</p>
+<table>
+  <tr><th>화면 표시</th><th>뜻</th></tr>
+  <tr><td><span style="color:#2ea36f"><b>ML 정상</b></span></td><td>움직임 패턴이 평소와 같음</td></tr>
+  <tr><td><span style="color:#c94f4f"><b>ML 이상 n건</b></span></td><td>평소와 다른 패턴 감지 — 알림에서 상세 확인</td></tr>
+  <tr><td><b>ML 모델 없음</b></td><td>AI 기능이 설치되지 않음(프로그램 폴더에 models 폴더 필요) — 건강 점수만으로도 감시는 됩니다</td></tr>
+</table>
+
+<h2 id="alerts">5. 알림이 뜨면 이렇게 하세요</h2>
+
+<p>화면 아래 <b>"CBM 알림"</b> 칸에 최신순으로 쌓입니다. 색과 종류별 대처:</p>
+<table>
+  <tr><th>알림 종류</th><th>쉬운 뜻</th><th>권장 조치</th></tr>
+  <tr><td><span style="color:#c94f4f"><b>급변</b></span> (빨강)</td>
+      <td>값이 <b>갑자기</b> 크게 변함</td>
+      <td>충돌·간섭·부하 급변 의심. 로봇과 주변을 즉시 확인하고, 반복되면 보전 담당자에게 알리세요.</td></tr>
+  <tr><td><span style="color:#d99a2b"><b>드리프트</b></span> (주황)</td>
+      <td>값이 <b>서서히</b> 변하는 중</td>
+      <td>마모·발열 같은 점진적 변화 의심. 당장 세울 일은 아니지만 기록해 두고 추세를 지켜보세요.</td></tr>
+  <tr><td><span style="color:#d99a2b"><b>ML 이상</b></span> (주황)</td>
+      <td>AI가 평소와 다른 <b>움직임 패턴</b>을 감지</td>
+      <td>해당 관절의 차트를 열어 파형을 확인하세요. 급변/드리프트와 같이 뜨면 신뢰도가 높습니다.</td></tr>
+  <tr><td><span style="color:#2ea36f"><b>복귀</b></span> (초록)</td>
+      <td>문제가 있던 값이 <b>정상으로 돌아옴</b></td>
+      <td>일시적 현상이었을 수 있습니다. 자주 반복되면 그것 자체가 신호이니 기록하세요.</td></tr>
+</table>
+<p>알림 문구의 <code>z=4.2</code>는 "평소 흔들리는 폭의 4.2배만큼 벗어났다"는 뜻입니다.
+숫자가 클수록 확실한 이상입니다.</p>
+
+<h2 id="chart">6. 차트 보는 법</h2>
+<div class="step"><b class="no">1</b>카드의 <span class="badge b-blue">차트</span> 버튼을 누르면 숫자 표가 <b>실시간 그래프</b>(최근 30초)로 바뀝니다.</div>
+<div class="step"><b class="no">2</b><b>차트 신호</b> 목록에서 보고 싶은 항목 하나를 고릅니다. 관절 6개(J1~J6)가 색깔별 선으로 그려집니다.</div>
+<div class="step"><b class="no">3</b>알림이 가리킨 관절의 선이 다른 선과 다르게 움직이는지 확인하세요. 다시 <b>차트</b>를 누르면 표로 돌아옵니다.</div>
+
+<h2 id="web">7. 사무실에서 원격으로 보기 (웹 대시보드)</h2>
+<p>수집 서버(<code>BODA.CMS.Collector</code>)가 돌고 있다면, 같은 네트워크의 아무 PC에서나
+브라우저로 볼 수 있습니다 — 설치 불필요:</p>
+<p style="text-align:center; font-size:18px"><code>http://수집서버주소:5100</code></p>
+<p>로봇별 카드(연결 상태·수신 속도·건강 점수·AI 판정)와 알림이 1초마다 갱신됩니다.
+수집 서버는 사람이 없어도 24시간 감시와 기록을 계속합니다.</p>
+
+<h2 id="faq">8. 문제가 생겼을 때</h2>
+<table>
+  <tr><th>증상</th><th>확인할 것</th></tr>
+  <tr><td>"연결 실패 / 연결 타임아웃"</td>
+      <td>① 랜선·IP 주소 확인 ② 로봇 컨트롤러 전원 확인 ③ 같은 네트워크인지 확인(PC에서 <code>ping 로봇IP</code>)</td></tr>
+  <tr><td>"연결 끊김" (빨강)</td>
+      <td>네트워크가 잠시 끊긴 것 — 원인 해결 후 <b>모니터링 시작</b>을 다시 누르세요. (수집 서버는 자동으로 재접속합니다)</td></tr>
+  <tr><td>"라이선스 등급 초과"</td>
+      <td>현재 라이선스로 쓸 수 없는 상세(Pro) 채널입니다 — 구매처에 등급 업그레이드를 문의하세요.</td></tr>
+  <tr><td>건강 점수가 자꾸 낮게 나옴</td>
+      <td>학습 중에 로봇이 멈춰 있었거나 평소와 다른 작업을 했을 수 있습니다 — 정상 작업 중에 모니터링을 다시 시작해 재학습하세요.</td></tr>
+  <tr><td>숫자가 안 보이고 "(모니터링 시작 전)"</td>
+      <td>카드의 <b>모니터링 시작</b> 버튼을 눌렀는지 확인하세요.</td></tr>
+  <tr><td>프로그램 오류 창이 뜸</td>
+      <td>프로그램은 계속 동작합니다. 오류 기록이 <code>%TEMP%\BODA.CMS.crash.log</code>에 남으니 담당자에게 전달해 주세요.</td></tr>
+</table>
+
+<h2 id="words">9. 용어 사전 — 화면 표기 ↔ 쉬운 말</h2>
+<table>
+  <tr><th>화면 표기</th><th>쉬운 말</th><th>설명</th></tr>
+  <tr><td><b>CBM</b></td><td>건강 상태 감시</td><td>평소 상태를 외워뒀다가 달라지면 알려주는 기능 (Condition Based Monitoring)</td></tr>
+  <tr><td><b>ML</b></td><td>AI 이상 감지</td><td>값의 "움직임 패턴"이 평소와 다른지 AI가 판단 (Machine Learning)</td></tr>
+  <tr><td><b>기준선</b></td><td>평소 상태</td><td>정상 작업 1분간 학습한 평균적인 값의 범위</td></tr>
+  <tr><td><b>z</b> (예: z=4.2)</td><td>벗어난 정도</td><td>평소 흔들림 폭의 몇 배나 벗어났는지 — 클수록 확실한 이상</td></tr>
+  <tr><td><b>급변</b></td><td>갑자기 변함</td><td>충돌·간섭처럼 순간적으로 값이 튐</td></tr>
+  <tr><td><b>드리프트</b></td><td>서서히 변함</td><td>마모·발열처럼 천천히 조금씩 변함</td></tr>
+  <tr><td><b>패시브</b></td><td>읽기 전용</td><td>로봇 작업을 절대 방해하지 않는 연결 방식</td></tr>
+  <tr><td><b>채널</b></td><td>데이터 연결선</td><td>로봇에서 데이터를 받아오는 통로 (한 로봇에 여러 개 가능)</td></tr>
+  <tr><td><b>Basic / Pro</b></td><td>기본 / 상세 등급</td><td>연결선으로 받을 수 있는 데이터의 상세함 — 자동 판별</td></tr>
+  <tr><td><b>Hz</b></td><td>초당 횟수</td><td>10Hz = 1초에 10번 데이터 수신</td></tr>
+  <tr><td><b>토크(Nm)</b></td><td>관절이 내는 힘</td><td>무리하면 커짐 — 마모·부하 이상의 핵심 지표</td></tr>
+  <tr><td><b>~_raw</b></td><td>원시 숫자</td><td>단위 환산 전의 값 — 크기보다 변화 추세를 보는 용도</td></tr>
+  <tr><td><b>J1~J6</b></td><td>1~6번 관절</td><td>로봇 바닥(J1)부터 손목(J6)까지의 회전축</td></tr>
+</table>
+
+<footer>BODA.CMS 간단 사용설명서 · 2026-07 · 기술 문의: 설비/보전 담당자 또는 공급사</footer>
+
+</body>
+</html>
