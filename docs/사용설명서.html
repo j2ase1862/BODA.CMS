@@ -263,6 +263,32 @@
   <tr><td>데이터 저장(DB) 켜기</td><td><code>appsettings.json</code>의 <code>Storage:Enabled</code>를 <code>true</code>로 + DB 접속 문자열 설정 (TimescaleDB 필요 — 공급사 문의)</td></tr>
 </table>
 
+<h3>AI 모델 재학습 — 우리 로봇에 맞게 똑똑하게 만들기</h3>
+
+<p>처음 설치된 AI 모델은 <b>범용 모델</b>이라 우리 로봇의 평소 움직임을 모릅니다.
+그래서 실제로는 멀쩡한데 "ML 이상"이 자꾸 뜰 수 있습니다.
+데이터 저장(DB)을 켜고 <b>정상 운전 데이터가 하루 이상</b> 쌓이면,
+그 데이터로 재학습해 우리 로봇 전용 모델로 교체할 수 있습니다. 오탐이 크게 줄어듭니다.</p>
+
+<div class="step"><b class="no">1</b><b>재학습 실행</b> (파이썬이 설치된 개발/관리 PC의 저장소 폴더에서)
+<pre style="background:#f0f3f7; padding:10px 14px; border-radius:6px; font-size:13px">python tools\ml\retrain_anomaly.py --since 2026-07-09T08:00:00+09:00</pre>
+<code>--since</code> 뒤에는 <b>로봇이 정상 작업을 시작한 시각</b>을 적습니다.
+필요한 패키지가 없다고 나오면: <code>pip install numpy scikit-learn skl2onnx psycopg2-binary onnxruntime</code>
+<span class="tip">💡 학습이 끝나면 저장소의 <code>models\</code> 폴더에 새 모델 파일 2개
+(<code>anomaly_iforest.onnx</code>, <code>anomaly_iforest.json</code>)가 만들어집니다.</span></div>
+
+<div class="step"><b class="no">2</b><b>새 모델 배포</b><br>
+새 모델 파일 2개를 프로그램 폴더 안의 <code>models\</code>에 복사해 덮어씁니다:
+감시 서버(예: <code>C:\BODA\collector\models\</code>)와, 모니터 화면 프로그램을 쓰는 PC에도 각각.</div>
+
+<div class="step"><b class="no">3</b><b>재시작 후 확인</b><br>
+감시 서버는 <code>services.msc</code>에서 <b>다시 시작</b>, 모니터 화면은 프로그램을 다시 실행합니다.
+전보다 "ML 이상" 알림이 눈에 띄게 줄었으면 성공입니다.</div>
+
+<div class="warn">⚠️ <b>정상 데이터로만 학습하세요.</b> <code>--since</code> 기간에 로봇이 이상하게 돌던 날·장시간
+멈춰 있던 날이 섞이면 AI가 그 상태를 "평소"로 외워버려 정작 진짜 이상을 놓칩니다.
+문제가 있었던 날은 기간에서 빼세요.</div>
+
 <footer>BODA.CMS 간단 사용설명서 · 2026-07 · 기술 문의: 설비/보전 담당자 또는 공급사</footer>
 
 </body>
