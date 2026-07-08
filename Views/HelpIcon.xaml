@@ -1,0 +1,56 @@
+<UserControl x:Class="BODA.CMS.Views.HelpIcon"
+             x:Name="Root"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             VerticalAlignment="Center">
+    <Grid>
+        <!-- 클릭 토글식 도움말 아이콘 — 팝업 바깥 클릭 시 자동 닫힘(IsOpen ↔ IsChecked 양방향) -->
+        <ToggleButton x:Name="Toggle" Width="15" Height="15" Cursor="Help"
+                      AutomationProperties.Name="{Binding HelpTitle, ElementName=Root, StringFormat=도움말: {0}}"
+                      ToolTip="클릭하면 설명이 열립니다">
+            <ToggleButton.Template>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="Circle" CornerRadius="8" Background="#FFD8DEE6">
+                        <TextBlock Text="?" FontSize="10" FontWeight="Bold" Foreground="#FF5A6470"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Circle" Property="Background" Value="#FF2D6CDF" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Circle" Property="Background" Value="#FF2D6CDF" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </ToggleButton.Template>
+        </ToggleButton>
+
+        <Popup IsOpen="{Binding IsChecked, ElementName=Toggle, Mode=TwoWay}"
+               StaysOpen="False" AllowsTransparency="True"
+               PlacementTarget="{Binding ElementName=Toggle}" Placement="Bottom">
+            <Border Background="#FF2B3138" CornerRadius="6" Padding="12" MaxWidth="340" Margin="6">
+                <Border.Effect>
+                    <DropShadowEffect Color="#66000000" BlurRadius="12" ShadowDepth="2" />
+                </Border.Effect>
+                <StackPanel>
+                    <TextBlock Text="{Binding HelpTitle, ElementName=Root}"
+                               FontWeight="SemiBold" FontSize="13" Foreground="White"
+                               Margin="0,0,0,6" TextWrapping="Wrap">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HelpTitle, ElementName=Root}" Value="">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <TextBlock Text="{Binding HelpText, ElementName=Root}"
+                               FontSize="12" Foreground="#FFD6E1EC" TextWrapping="Wrap" LineHeight="18" />
+                </StackPanel>
+            </Border>
+        </Popup>
+    </Grid>
+</UserControl>
