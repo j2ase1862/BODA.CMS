@@ -4,6 +4,25 @@
 
 ---
 
+## 2026-07-08 — Phase P3: ML 이상탐지 1차 (부트스트랩 모델)
+
+### 요약
+- 로드맵 AI 원칙(**Python 학습 → ONNX → .NET 추론**) 그대로 P3 1차 완료. CBM과 상호 보완: CBM은 단일 신호의 편차/추세, ML은 윈도의 *형태*(6피처 조합)를 본다.
+- 현재 모델은 **합성 정상 데이터 부트스트랩** — 실 데이터가 TimescaleDB에 쌓이면 같은 스크립트로 재학습해 `models/`만 교체(코드 수정 불필요).
+
+### 구조
+- **피처(리샘플링 규약 해소)**: CBM 1초 집계의 z-정규화 값 → 슬라이딩 윈도(10) → [mean, std, rms, min, max, slope]. z-공간이라 신호·벤더·주기(1~100Hz) 무관 → **단일 모델**. ⚠️ 피처 정의는 C# `AnomalyFeatures` ↔ `tools/ml/train_anomaly.py` 완전 일치 유지.
+- **학습**: IsolationForest(비지도, sklearn) — AR(1)+완만한 주기 성분의 합성 정상 z-시퀀스 76k 윈도. 임계 = 검증 정상 점수 0.5퍼센타일(오탐 ≈0.5%/윈도). skl2onnx export(`ai.onnx.ml` v3 고정 필요) + 사이드카 json(window/threshold). sklearn↔ONNX 점수 정합 오차 0 확인.
+- **추론**: `OnnxAnomalyScorer`(ONNX Runtime 1.19.2, win-x64 네이티브 전이) + `MlAnomalyMonitor` — `CbmMonitor.AggregateEvaluated`(신규 이벤트, z 스트림) 구독, 임계 미달 연속 3회 → Warning, 정상 연속 5회 → 해제. 모델 없으면 ML만 비활성.
+- **UI**: 카드 ML 칩 + 기존 CBM 알림 리스트 공유. 벤더 전환 시 ONNX 세션 해제(`Cleanup`).
+
+### 검증
+- 테스트 +3 (총 32): 피처 수치 정합, 스텁 스코어러로 디바운스/해제 판정, ONNX 모델 정상<->비정상 윈도 점수 분리(소프트 스킵 가드).
+- 시뮬레이터 결함 주입 데모로 ML 알람 발화 확인(아래 스크린샷 절차와 동일).
+- Python 환경: 3.14 + scikit-learn 1.9 / skl2onnx 1.20 / onnx 1.20 / onnxruntime 설치.
+
+---
+
 ## 2026-07-07 (3) — Phase P2: CBM 조건기반 감시 1차
 
 ### 요약

@@ -171,11 +171,13 @@ public sealed class RobotCapabilities
 - [ ] Collector에 CBM 통합 + 알림 DB 저장·통보 채널 — P5 웹 대시보드와 함께
 - [ ] 기준선 영속화(재시작 시 재학습 생략)·운전 조건별(프로그램/모드) 기준선 분리 — 실 데이터 확보 후
 
-### Phase P3 — ML 이상탐지
-- [ ] 시계열 특징 추출(피처 엔지니어링) — 샘플링 주기 차이(벤더별 1~100Hz)를 흡수하는 리샘플링 규약 포함
-- [ ] Python 학습(Anomalib/sklearn/PyTorch, 비지도) → **ONNX export**
-- [ ] .NET ONNX Runtime으로 앱 내 추론
-- [ ] 이상 점수를 UI/알림에 연동
+### Phase P3 — ML 이상탐지 ✅ 1차 완료 (2026-07, 부트스트랩 모델)
+- [x] 피처 엔지니어링 + 리샘플링 규약: CBM 1초 집계의 **z-정규화 값** 슬라이딩 윈도(10) → 6피처(mean/std/rms/min/max/slope). z-공간 입력이라 신호·벤더·샘플링 주기(1~100Hz) 무관 — **단일 모델이 전 채널 커버**. 정의는 C#(`AnomalyFeatures`)·Python(train 스크립트) 양쪽 동일 유지 필수.
+- [x] Python 학습 → ONNX: `tools/ml/train_anomaly.py` — IsolationForest(비지도) → skl2onnx export + 임계값 사이드카(json, 정상 0.5퍼센타일 캘리브레이션). sklearn↔ONNX 점수 정합 검증 포함. **현재 모델은 합성 정상(z-공간) 학습 부트스트랩** — 실 데이터 축적 후 같은 스크립트로 재학습해 `models/`만 교체.
+- [x] .NET ONNX Runtime 추론: `Analytics/Ml/OnnxAnomalyScorer` + `MlAnomalyMonitor`(CBM 집계 스트림 구독, 디바운스·자동 해제). 모델 파일 없으면 ML만 꺼진 채 동작.
+- [x] UI/알림 연동: 카드 ML 칩("ML 정상"/"ML 이상 n건") + CBM 알림 리스트 공유(Kind "ML 이상"/"ML 복귀").
+- [ ] 실 데이터 재학습 파이프라인: TimescaleDB → 피처 추출 → 학습 (P1 실 DB 검증 이후)
+- [ ] Collector에 ML 통합(무인 감시 경로) — CBM 통합과 함께
 
 ### Phase P4 — 비전 진단 (바심 차별화, 벤더 무관)
 - [ ] 카메라 기반 반복정밀도 드리프트·엔드이펙터 마모 진단 PoC
@@ -283,7 +285,7 @@ public sealed class RobotCapabilities
 
 **플랫폼 공통**
 - [x] Collector 분리 시 `net8.0-windows` 의존 제거 범위 — **전부 제거 가능 확인**: Core·Comms·드라이버·Collector 모두 net8.0 중립 (P/Invoke 선언은 컴파일 타깃 무관, DRFL 채널만 런타임 win-x64 전제). windows 타깃은 WPF 앱뿐.
-- [ ] 벤더별 샘플링 주기 편차(1~100Hz+)의 저장·피처 리샘플링 규약
+- [x] 벤더별 샘플링 주기 편차(1~100Hz+)의 피처 리샘플링 규약 — **해소(P3)**: 1초 집계 + 기준선 z-정규화 공간에서 피처 추출 → 주기·스케일 무관. (저장은 원 주기 그대로 — P1 스키마.)
 
 **두산**
 - [x] CS-01 DRCF 버전 — **V2.11.1**(`GV02110100`) 확정 → DRFL v2 브랜치(`DRCF_VERSION=2`), RT API(UDP) 지원(2.8+).

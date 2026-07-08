@@ -43,4 +43,12 @@
     <Page Remove="tools\**\*.xaml" />
   </ItemGroup>
 
+  <!-- ML 모델 번들(tools/ml/train_anomaly.py 산출물) — exe 옆 models/ 로 복사. -->
+  <ItemGroup>
+    <None Include="models\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>models\%(Filename)%(Extension)</Link>
+    </None>
+  </ItemGroup>
+
 </Project>

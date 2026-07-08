@@ -14,4 +14,9 @@
     <ProjectReference Include="..\Core\BODA.CMS.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- ONNX 추론 런타임 (win-x64 네이티브 포함 — 참조 프로젝트로 전이 복사). -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.19.2" />
+  </ItemGroup>
+
 </Project>

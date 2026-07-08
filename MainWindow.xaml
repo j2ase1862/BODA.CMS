@@ -105,6 +105,8 @@
                                            FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center" />
                                 <TextBlock Text="{Binding CbmText}" Foreground="{Binding CbmBrush}"
                                            FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding MlText}" Foreground="{Binding MlBrush}"
+                                           FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center" />
                             </StackPanel>
 
                             <ToggleButton Grid.Row="0" Grid.Column="1"

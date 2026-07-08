@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using BODA.CMS.Analytics;
+using BODA.CMS.Analytics.Ml;
 using BODA.CMS.Core.Telemetry;
 using BODA.CMS.Mvvm;
 
@@ -38,6 +39,7 @@ namespace BODA.CMS.ViewModels
         private int _chartQueueCount;
 
         private readonly CbmMonitor _cbm = new();
+        private readonly MlAnomalyMonitor? _ml;
 
         private string _status = "대기";
         private Brush _statusBrush = Brushes.Gray;
@@ -48,6 +50,8 @@ namespace BODA.CMS.ViewModels
         private SignalToggle? _selectedChartSignal;
         private string _cbmText = "CBM 대기";
         private Brush _cbmBrush = Brushes.Gray;
+        private string _mlText = "";
+        private Brush _mlBrush = Brushes.Gray;
 
         public TelemetrySourceViewModel(
             IRobotTelemetrySource source, Func<string> getHost, Action<string> log,
@@ -65,7 +69,19 @@ namespace BODA.CMS.ViewModels
             _source.Notification += (_, msg) => _log($"[{Title}] {msg}");
             if (onCbmAlert is not null)
                 _cbm.AlertRaised += a => onCbmAlert(Title, a); // ⚠️ 드라이버 스레드 — 구독자가 마샬링
+
+            // ML 이상탐지: 모델이 있으면 CBM 집계 스트림에 연결 (없으면 CBM만으로 동작).
+            _ml = MlAnomalyMonitor.TryLoad(System.IO.Path.Combine(AppContext.BaseDirectory, "models"));
+            if (_ml is not null)
+            {
+                _ml.Attach(_cbm);
+                if (onCbmAlert is not null) _ml.AlertRaised += a => onCbmAlert(Title, a);
+            }
+            _mlText = _ml is null ? "ML 모델 없음" : "ML 대기";
         }
+
+        /// <summary>벤더 전환 등으로 카드가 폐기될 때 네이티브 자원(ONNX 세션) 해제.</summary>
+        public void Cleanup() => _ml?.Dispose();
 
         public IRobotTelemetrySource Source => _source;
 
@@ -104,6 +120,10 @@ namespace BODA.CMS.ViewModels
         /// <summary>CBM 상태 칩: "CBM 학습 42%" → "건강도 100" (알림 있으면 개수 표시).</summary>
         public string CbmText { get => _cbmText; set => SetProperty(ref _cbmText, value); }
         public Brush CbmBrush { get => _cbmBrush; set => SetProperty(ref _cbmBrush, value); }
+
+        /// <summary>ML 이상탐지 칩: "ML 정상" / "ML 이상 n건". 모델 없으면 안내만.</summary>
+        public string MlText { get => _mlText; set => SetProperty(ref _mlText, value); }
+        public Brush MlBrush { get => _mlBrush; set => SetProperty(ref _mlBrush, value); }
 
         /// <summary>true면 판독 표 대신 라이브 차트를 표시.</summary>
         public bool IsChartMode { get => _isChartMode; set => SetProperty(ref _isChartMode, value); }
@@ -205,13 +225,30 @@ namespace BODA.CMS.ViewModels
             _lastUiUpdate = now;
 
             CbmSnapshot cbm = _cbm.Snapshot;
+            MlSnapshot? ml = _ml?.Snapshot;
             Application.Current?.Dispatcher.BeginInvoke(() =>
             {
                 _lastFrame = frame;
                 EnsureSignalToggles(frame);
                 Readout = BuildReadout(frame, SelectedLabels());
                 UpdateCbmChip(cbm);
+                if (ml is not null) UpdateMlChip(ml);
             });
+        }
+
+        private void UpdateMlChip(MlSnapshot s)
+        {
+            if (s.ScoredWindows == 0)
+            {
+                MlText = "ML 대기";
+                MlBrush = Brushes.Gray;
+                return;
+            }
+
+            MlText = s.ActiveAlertCount > 0
+                ? $"ML 이상 {s.ActiveAlertCount}건 ({s.WorstDescription})"
+                : "ML 정상";
+            MlBrush = s.ActiveAlertCount > 0 ? Brushes.Firebrick : Brushes.SeaGreen;
         }
 
         private void UpdateCbmChip(CbmSnapshot s)

@@ -92,6 +92,7 @@ namespace BODA.CMS.ViewModels
                 {
                     await s.StopAsync();
                     await s.Source.DisposeAsync();
+                    s.Cleanup();
                 }
                 Sources.Clear();
                 LoadSources(vendor);

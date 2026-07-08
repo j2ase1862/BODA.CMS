@@ -44,10 +44,14 @@ namespace BODA.CMS.Analytics
         /// <summary>알림 발생(급변/드리프트/복귀). Ingest 호출 스레드에서 발화.</summary>
         public event Action<CbmAlert>? AlertRaised;
 
+        /// <summary>집계 창 평가 결과 스트림 — ML 이상탐지 등 다운스트림 소비용. Ingest 호출 스레드에서 발화.</summary>
+        public event Action<CbmAggregate>? AggregateEvaluated;
+
         /// <summary>프레임 1건 반영. 집계 창이 넘어가면 내부 판정이 수행된다.</summary>
         public void Ingest(RobotTelemetryFrame frame)
         {
             List<CbmAlert>? alerts = null;
+            List<CbmAggregate>? aggregates = null;
 
             lock (_gate)
             {
@@ -56,7 +60,7 @@ namespace BODA.CMS.Analytics
 
                 DateTime bucket = Truncate(frame.ReceivedAtUtc, _options.AggregationSeconds);
                 if (_currentBucket != default && bucket != _currentBucket)
-                    alerts = EvaluateBucket(frame.ReceivedAtUtc);
+                    (alerts, aggregates) = EvaluateBucket(frame.ReceivedAtUtc);
                 _currentBucket = bucket;
 
                 foreach ((string label, double[] values, _) in TelemetrySignals.Enumerate(frame))
@@ -71,6 +75,8 @@ namespace BODA.CMS.Analytics
             }
 
             // 핸들러 재진입/교착 방지를 위해 lock 밖에서 발화.
+            if (aggregates is not null)
+                foreach (CbmAggregate a in aggregates) AggregateEvaluated?.Invoke(a);
             if (alerts is not null)
                 foreach (CbmAlert a in alerts) AlertRaised?.Invoke(a);
         }
@@ -116,9 +122,10 @@ namespace BODA.CMS.Analytics
             }
         }
 
-        private List<CbmAlert> EvaluateBucket(DateTime atUtc)
+        private (List<CbmAlert> Alerts, List<CbmAggregate> Aggregates) EvaluateBucket(DateTime atUtc)
         {
             var alerts = new List<CbmAlert>();
+            var aggregates = new List<CbmAggregate>();
             _evaluatedOnce = true;
 
             foreach (((string signal, int axis), (double sum, int n)) in _accum)
@@ -134,6 +141,7 @@ namespace BODA.CMS.Analytics
                     s.Baseline.Add(value);
                     s.Ewma = value; // 학습 중엔 EWMA를 따라가게만
                     s.EwmaInitialized = true;
+                    aggregates.Add(new CbmAggregate(_vendorId, _channelId, signal, axis, value, null));
                     continue;
                 }
 
@@ -143,6 +151,7 @@ namespace BODA.CMS.Analytics
 
                 double z = (value - mean) / std;
                 s.LastZ = z;
+                aggregates.Add(new CbmAggregate(_vendorId, _channelId, signal, axis, value, z));
 
                 s.Ewma = s.EwmaInitialized
                     ? _options.EwmaAlpha * value + (1 - _options.EwmaAlpha) * s.Ewma
@@ -187,7 +196,7 @@ namespace BODA.CMS.Analytics
             }
 
             _accum.Clear();
-            return alerts;
+            return (alerts, aggregates);
         }
 
         private CbmAlert NewAlert(DateTime atUtc, string signal, int axis, CbmSeverity severity,
