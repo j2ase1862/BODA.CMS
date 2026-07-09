@@ -216,6 +216,48 @@
   <tr><td><b>BODA.CMS.Collector</b> (감시 서버)</td><td>사람이 없어도 <b>24시간</b> 데이터 수집·기록·이상 감시 + 웹 대시보드 제공</td><td>공장 내 상시 가동 PC 1대 — Windows 서비스로 등록</td></tr>
 </table>
 
+<h3>설치 요구사항 — 새 PC에 설치하기 전 준비물</h3>
+<table>
+  <tr><th>항목</th><th>요구사항</th><th>비고</th></tr>
+  <tr><td><b>PC / 운영체제</b></td><td>Windows 10/11 <b>64비트(x64)</b></td><td>32비트 PC에서는 동작하지 않습니다</td></tr>
+  <tr><td><b>.NET 등 실행 환경</b></td><td><b>설치 불필요</b></td><td>배포 zip에 실행 환경이 포함(self-contained)되어 있어 압축만 풀면 됩니다</td></tr>
+  <tr><td><b>네트워크</b></td><td>로봇 컨트롤러 IP에 접근 가능한 <b>공장 내부망</b></td><td>다른 PC에서 대시보드를 보려면 TCP 5100 방화벽 허용(아래 참고)</td></tr>
+  <tr><td><b>데이터베이스(DB)</b></td><td><b>선택</b> — PostgreSQL (TimescaleDB 확장 권장)</td><td>실시간 감시만 쓰면 <b>DB 없이 동작</b>합니다. 이력 축적·AI 재학습을 쓰려면 필요(아래 참고)</td></tr>
+  <tr><td><b>파이썬(Python)</b></td><td><b>선택</b> — AI 재학습 시에만</td><td>현장 PC가 아닌 개발/관리 PC에만 있으면 됩니다</td></tr>
+</table>
+<p><b>모니터 화면(BODA.CMS)</b>은 DB·파이썬이 전혀 필요 없습니다 — zip을 풀고 실행하면 끝.
+아래 DB 준비는 <b>감시 서버(Collector)에서 데이터 저장을 켤 때만</b> 해당합니다.</p>
+
+<h3>데이터베이스(DB) 준비 — 이력 축적·AI 재학습을 쓸 때만</h3>
+<p>감시 서버는 수집한 데이터를 <b>PostgreSQL</b>에 기록합니다. 감시 서버와 같은 PC 또는
+내부망의 다른 서버에 설치하면 됩니다. 저장을 켜지 않으면(<code>Storage:Enabled = false</code>)
+이 단계는 통째로 건너뛰어도 됩니다 — 실시간 감시·알림·대시보드는 DB 없이 모두 동작합니다.</p>
+
+<div class="step"><b class="no">1</b><b>PostgreSQL 설치</b><br>
+<a href="https://www.postgresql.org/download/windows/">postgresql.org</a>에서 Windows용 설치본(16 버전 권장)을 받아 설치합니다.
+설치 중 정한 <code>postgres</code> 계정 비밀번호를 기억해 두세요.
+<span class="tip">💡 시계열 성능·오래된 데이터 자동 정리가 필요하면 <b>TimescaleDB</b> 확장을 함께 설치하세요
+(<a href="https://docs.timescale.com/self-hosted/latest/install/installation-windows/">timescale.com 설치 안내</a>).
+없어도 동작은 하며, 이 경우 일반 테이블로 저장됩니다.</span></div>
+
+<div class="step"><b class="no">2</b><b>데이터베이스 만들기</b><br>
+PostgreSQL 설치 시 함께 깔리는 <b>SQL Shell(psql)</b> 또는 pgAdmin에서:
+<pre style="background:#f0f3f7; padding:10px 14px; border-radius:6px; font-size:13px">CREATE DATABASE boda_cms;</pre>
+TimescaleDB를 설치했다면 이어서:
+<pre style="background:#f0f3f7; padding:10px 14px; border-radius:6px; font-size:13px">\c boda_cms
+CREATE EXTENSION IF NOT EXISTS timescaledb;</pre>
+<span class="tip">💡 테이블은 만들 필요 없습니다 — 감시 서버가 첫 시작 때 자동으로 만듭니다.</span></div>
+
+<div class="step"><b class="no">3</b><b>감시 서버에 접속 정보 입력</b><br>
+<code>appsettings.json</code>의 <code>Storage</code> 부분을 수정합니다:
+<pre style="background:#f0f3f7; padding:10px 14px; border-radius:6px; font-size:13px">"Storage": {
+  "Enabled": true,
+  "ConnectionString": "Host=localhost;Port=5432;Database=boda_cms;Username=postgres;Password=비밀번호"
+}</pre>
+DB가 다른 PC에 있으면 <code>Host</code>에 그 PC의 IP를 적고, 그 PC 방화벽에서 TCP 5432를 허용합니다.
+수정 후 서비스를 <b>다시 시작</b>하면 적용됩니다.
+<span class="tip">💡 DB가 잠시 꺼져도 감시는 멈추지 않습니다 — 데이터는 메모리에 모아뒀다 DB가 살아나면 이어서 기록합니다(한도 초과분은 오래된 것부터 유실).</span></div>
+
 <h3>설치 순서 (감시 서버)</h3>
 
 <div class="step"><b class="no">1</b><b>설치 파일 준비</b><br>
@@ -260,7 +302,7 @@
   <tr><td>동작 기록(로그) 보기</td><td>Windows <b>이벤트 뷰어</b> → Windows 로그 → 응용 프로그램 → 원본 "BODA.CMS.Collector"</td></tr>
   <tr><td>프로그램 업데이트</td><td>서비스 <b>중지</b> → 폴더의 파일을 새 버전으로 교체(설정 파일은 유지) → 서비스 <b>시작</b></td></tr>
   <tr><td>서비스 제거</td><td>관리자 PowerShell: <code>powershell -File tools\install-service.ps1 -Uninstall</code></td></tr>
-  <tr><td>데이터 저장(DB) 켜기</td><td><code>appsettings.json</code>의 <code>Storage:Enabled</code>를 <code>true</code>로 + DB 접속 문자열 설정 (TimescaleDB 필요 — 공급사 문의)</td></tr>
+  <tr><td>데이터 저장(DB) 켜기</td><td><code>appsettings.json</code>의 <code>Storage:Enabled</code>를 <code>true</code>로 + DB 접속 문자열 설정 — 위 "데이터베이스(DB) 준비" 참고</td></tr>
 </table>
 
 <h3>AI 모델 재학습 — 우리 로봇에 맞게 똑똑하게 만들기</h3>
