@@ -222,7 +222,7 @@
   <tr><td><b>PC / 운영체제</b></td><td>Windows 10/11 <b>64비트(x64)</b></td><td>32비트 PC에서는 동작하지 않습니다</td></tr>
   <tr><td><b>.NET 등 실행 환경</b></td><td><b>설치 불필요</b></td><td>배포 zip에 실행 환경이 포함(self-contained)되어 있어 압축만 풀면 됩니다</td></tr>
   <tr><td><b>네트워크</b></td><td>로봇 컨트롤러 IP에 접근 가능한 <b>공장 내부망</b></td><td>다른 PC에서 대시보드를 보려면 TCP 5100 방화벽 허용(아래 참고)</td></tr>
-  <tr><td><b>데이터베이스(DB)</b></td><td><b>선택</b> — PostgreSQL (TimescaleDB 확장 권장)</td><td>실시간 감시만 쓰면 <b>DB 없이 동작</b>합니다. 이력 축적·AI 재학습을 쓰려면 필요(아래 참고)</td></tr>
+  <tr><td><b>데이터베이스(DB)</b></td><td><b>선택</b> — PostgreSQL (TimescaleDB 확장 권장)</td><td>실시간 감시만 쓰면 <b>DB 없이 동작</b>합니다. 필요 시 동봉된 스크립트로 <b>자동 설치</b>(아래 참고)</td></tr>
   <tr><td><b>파이썬(Python)</b></td><td><b>선택</b> — AI 재학습 시에만</td><td>현장 PC가 아닌 개발/관리 PC에만 있으면 됩니다</td></tr>
 </table>
 <p><b>모니터 화면(BODA.CMS)</b>은 DB·파이썬이 전혀 필요 없습니다 — zip을 풀고 실행하면 끝.
@@ -232,6 +232,24 @@
 <p>감시 서버는 수집한 데이터를 <b>PostgreSQL</b>에 기록합니다. 감시 서버와 같은 PC 또는
 내부망의 다른 서버에 설치하면 됩니다. 저장을 켜지 않으면(<code>Storage:Enabled = false</code>)
 이 단계는 통째로 건너뛰어도 됩니다 — 실시간 감시·알림·대시보드는 DB 없이 모두 동작합니다.</p>
+
+<h4>방법 A. 자동 설치 (권장) — 명령 한 줄</h4>
+<p>감시 서버를 푼 폴더(예: <code>C:\BODA\collector</code>)에서 <b>관리자 권한</b> PowerShell로:</p>
+<pre style="background:#f0f3f7; padding:10px 14px; border-radius:6px; font-size:13px">powershell -File tools\install-db.ps1</pre>
+<p>PostgreSQL 설치 → <code>boda_cms</code> DB 생성 → <code>appsettings.json</code>에 접속 정보 기록·저장 켜기 →
+감시 서버 재시작까지 <b>전부 자동</b>으로 합니다. 비밀번호는 무작위로 만들어 완료 메시지에 표시합니다
+(설정 파일에도 저장되므로 따로 외울 필요 없음).</p>
+<div class="step"><b class="no">※</b><b>인터넷이 안 되는 현장 PC라면</b> — 다른 PC에서
+<code>https://get.enterprisedb.com/postgresql/postgresql-16.4-1-windows-x64.exe</code>를 받아
+USB로 옮긴 뒤 경로를 지정해 실행합니다:
+<pre style="background:#f0f3f7; padding:10px 14px; border-radius:6px; font-size:13px">powershell -File tools\install-db.ps1 -InstallerPath "D:\postgresql-16.4-1-windows-x64.exe"</pre></div>
+<div class="step"><b class="no">※</b><b>PostgreSQL이 이미 설치된 PC라면</b> — 기존 서버를 재사용합니다.
+그 서버의 postgres 비밀번호를 알려주세요:
+<pre style="background:#f0f3f7; padding:10px 14px; border-radius:6px; font-size:13px">powershell -File tools\install-db.ps1 -Password "기존비밀번호"</pre></div>
+<span class="tip">💡 TimescaleDB 확장(시계열 성능·오래된 데이터 자동 정리)은 자동 설치에 포함되지 않습니다.
+필요하면 아래 방법 B의 1번을 참고해 추가로 설치하세요 — 없어도 감시·저장은 정상 동작합니다.</span>
+
+<h4>방법 B. 수동 설치 — 직접 하고 싶을 때</h4>
 
 <div class="step"><b class="no">1</b><b>PostgreSQL 설치</b><br>
 <a href="https://www.postgresql.org/download/windows/">postgresql.org</a>에서 Windows용 설치본(16 버전 권장)을 받아 설치합니다.

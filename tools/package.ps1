@@ -22,6 +22,11 @@ dotnet publish (Join-Path $root "Collector\BODA.CMS.Collector.csproj") -c Releas
     -p:Version=$Version -o (Join-Path $stage "collector") --nologo -v q
 if ($LASTEXITCODE -ne 0) { throw "Collector publish 실패" }
 
+# 설치 스크립트 동봉 — 현장에서 zip만 풀면 tools\install-service.ps1 / install-db.ps1 을 바로 쓸 수 있게.
+$colTools = Join-Path $stage "collector\tools"
+New-Item -ItemType Directory -Force $colTools | Out-Null
+Copy-Item (Join-Path $PSScriptRoot "install-service.ps1"), (Join-Path $PSScriptRoot "install-db.ps1") $colTools
+
 $appZip = Join-Path $dist "BODA.CMS-app-$Version-win-x64.zip"
 $colZip = Join-Path $dist "BODA.CMS-collector-$Version-win-x64.zip"
 Remove-Item $appZip, $colZip -ErrorAction SilentlyContinue
