@@ -4,6 +4,25 @@
 
 ---
 
+## 2026-07-09 (11) — MSI 설치 방식 전환 + PostgreSQL 자동 설치 스크립트
+
+### 작업 내용
+- **MSI 전환(WiX 5)**: `installer/App.wxs`(모니터 앱 — Program Files\BODA.CMS, 시작 메뉴·바탕화면 바로가기) + `installer/Collector.wxs`(감시 서버 — C:\BODA\Collector, **서비스 자동 등록·시작·delayed-auto·10/30/60초 장애 재시작까지 MSI가 처리**, install-service.ps1 불필요). `tools/package.ps1`이 WiX 자동 설치 후 MSI 2종 + 보조 zip 2종을 빌드.
+  - `appsettings.json`은 `NeverOverwrite+Permanent` — 업그레이드·재설치·제거에도 현장 로봇 구성 보존. 업그레이드는 새 msi 더블클릭이면 끝(MajorUpgrade).
+  - 비표준 루트(C:\BODA)라 `ComponentGuidGenerationSeed` 필요(WIX0231) — 시드 GUID는 업그레이드 동일성의 근거이므로 변경 금지.
+  - **WiX 7은 OSMF(상용 유지보수비) 동의 요구** → 5.0.2로 고정(package.ps1 부트스트랩도 5.0.2 명시).
+- **`tools/install-db.ps1`**: 현장 PC PostgreSQL 원커맨드 구성 — EDB 설치본 무인 설치(다운로드 or `-InstallerPath` 오프라인) → `boda_cms` 생성 → TimescaleDB 확장 있으면 활성화 → appsettings.json에 접속 문자열 기록(+Storage on, 정규식 치환이라 로봇 구성·한글 보존) → Collector 서비스 재시작. 기존 PG 재사용은 `-Password` 필수.
+- 사용설명서 §10 재작성: 설치 요구사항 표(DB는 선택), DB 준비(자동/수동), 설치 순서 4단계(msi 더블클릭 중심), 업데이트·제거를 프로그램 추가/제거로.
+
+### 검증
+- MSI 관리 이미지 추출(`msiexec /a`)로 361파일 구성 확인(exe·appsettings·models·tools·wwwroot), MSI DB 테이블 조회로 ServiceInstall(auto)·ServiceControl(163)·MsiServiceConfig(delayed)·FailureActions·바로가기 2종 확인. install-db.ps1은 EDB URL 실재(200, 357MB)·appsettings 치환 로직 검증.
+- 미검증(환경 제약): 실제 msi 설치/업그레이드/제거 사이클 — 개발 PC에 기존 스크립트 설치본·PG17이 있어 클린 PC 실테스트 필요.
+
+### 주의
+- 기존 zip+스크립트로 설치된 현장은 MSI 설치 전 `install-service.ps1 -Uninstall` 선행(서비스 이름 충돌).
+
+---
+
 ## 2026-07-08 (10) — 실기 데이터 축적 개시 (TimescaleDB) + ML 재학습 스크립트
 
 ### 작업 내용

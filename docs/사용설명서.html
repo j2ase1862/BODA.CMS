@@ -220,12 +220,13 @@
 <table>
   <tr><th>항목</th><th>요구사항</th><th>비고</th></tr>
   <tr><td><b>PC / 운영체제</b></td><td>Windows 10/11 <b>64비트(x64)</b></td><td>32비트 PC에서는 동작하지 않습니다</td></tr>
-  <tr><td><b>.NET 등 실행 환경</b></td><td><b>설치 불필요</b></td><td>배포 zip에 실행 환경이 포함(self-contained)되어 있어 압축만 풀면 됩니다</td></tr>
+  <tr><td><b>.NET 등 실행 환경</b></td><td><b>설치 불필요</b></td><td>설치 파일(MSI)에 실행 환경이 포함(self-contained)되어 있습니다</td></tr>
   <tr><td><b>네트워크</b></td><td>로봇 컨트롤러 IP에 접근 가능한 <b>공장 내부망</b></td><td>다른 PC에서 대시보드를 보려면 TCP 5100 방화벽 허용(아래 참고)</td></tr>
   <tr><td><b>데이터베이스(DB)</b></td><td><b>선택</b> — PostgreSQL (TimescaleDB 확장 권장)</td><td>실시간 감시만 쓰면 <b>DB 없이 동작</b>합니다. 필요 시 동봉된 스크립트로 <b>자동 설치</b>(아래 참고)</td></tr>
   <tr><td><b>파이썬(Python)</b></td><td><b>선택</b> — AI 재학습 시에만</td><td>현장 PC가 아닌 개발/관리 PC에만 있으면 됩니다</td></tr>
 </table>
-<p><b>모니터 화면(BODA.CMS)</b>은 DB·파이썬이 전혀 필요 없습니다 — zip을 풀고 실행하면 끝.
+<p><b>모니터 화면(BODA.CMS)</b>은 DB·파이썬이 전혀 필요 없습니다 —
+<code>BODA.CMS-app-버전-x64.msi</code>를 더블클릭해 설치하면 바탕화면에 "BODA.CMS 모니터" 바로가기가 생깁니다.
 아래 DB 준비는 <b>감시 서버(Collector)에서 데이터 저장을 켤 때만</b> 해당합니다.</p>
 
 <h3>데이터베이스(DB) 준비 — 이력 축적·AI 재학습을 쓸 때만</h3>
@@ -234,7 +235,7 @@
 이 단계는 통째로 건너뛰어도 됩니다 — 실시간 감시·알림·대시보드는 DB 없이 모두 동작합니다.</p>
 
 <h4>방법 A. 자동 설치 (권장) — 명령 한 줄</h4>
-<p>감시 서버를 푼 폴더(예: <code>C:\BODA\collector</code>)에서 <b>관리자 권한</b> PowerShell로:</p>
+<p>감시 서버 설치 폴더(기본 <code>C:\BODA\Collector</code>)에서 <b>관리자 권한</b> PowerShell로:</p>
 <pre style="background:#f0f3f7; padding:10px 14px; border-radius:6px; font-size:13px">powershell -File tools\install-db.ps1</pre>
 <p>PostgreSQL 설치 → <code>boda_cms</code> DB 생성 → <code>appsettings.json</code>에 접속 정보 기록·저장 켜기 →
 감시 서버 재시작까지 <b>전부 자동</b>으로 합니다. 비밀번호는 무작위로 만들어 완료 메시지에 표시합니다
@@ -278,31 +279,31 @@ DB가 다른 PC에 있으면 <code>Host</code>에 그 PC의 IP를 적고, 그 PC
 
 <h3>설치 순서 (감시 서버)</h3>
 
-<div class="step"><b class="no">1</b><b>설치 파일 준비</b><br>
-공급사에서 받은 <code>BODA.CMS-collector-버전-win-x64.zip</code>을
-고정 폴더(예: <code>C:\BODA\collector</code>)에 풉니다.
-<span class="tip">💡 .NET 등 별도 프로그램 설치가 필요 없습니다 — 압축만 풀면 됩니다.</span></div>
+<div class="step"><b class="no">1</b><b>설치 파일 실행</b><br>
+공급사에서 받은 <code>BODA.CMS-collector-버전-x64.msi</code>를 <b>더블클릭</b>하고
+권한 확인 창(UAC)에서 "예"를 누르면 설치가 끝납니다. 이것만으로:
+<ul style="margin:6px 0">
+  <li><code>C:\BODA\Collector</code>에 프로그램 설치 (.NET 등 별도 설치 불필요)</li>
+  <li>Windows 서비스 "BODA.CMS.Collector" <b>자동 등록·시작</b> — 재부팅해도 자동 시작, 비정상 종료 시 스스로 재시작(10초→30초→60초)</li>
+</ul>
+<span class="tip">💡 예전 zip+스크립트 방식으로 설치했던 PC라면, MSI 설치 <b>전에</b> 관리자 PowerShell에서
+<code>powershell -File tools\install-service.ps1 -Uninstall</code> 로 이전 서비스를 먼저 제거하세요.</span></div>
 
 <div class="step"><b class="no">2</b><b>감시할 로봇 등록</b><br>
-푼 폴더의 <code>appsettings.json</code>을 메모장으로 열어 <code>Robots</code> 부분에 로봇을 적습니다:
+<code>C:\BODA\Collector\appsettings.json</code>을 메모장으로 열어 <code>Robots</code> 부분에 로봇을 적습니다:
 <pre style="background:#f0f3f7; padding:10px 14px; border-radius:6px; font-size:13px">"Robots": [
   { "RobotId": "1라인-두산-01", "Vendor": "doosan", "Host": "192.168.1.100" },
   { "RobotId": "2라인-두산-02", "Vendor": "doosan", "Host": "192.168.1.101" }
 ]</pre>
 <code>RobotId</code>는 대시보드에 표시될 이름(자유), <code>Vendor</code>는 제조사 코드(doosan / jaka / sim),
-<code>Host</code>는 로봇 컨트롤러 IP입니다. 여러 대를 쉼표로 이어 적으면 동시에 감시합니다.</div>
+<code>Host</code>는 로봇 컨트롤러 IP입니다. 여러 대를 쉼표로 이어 적으면 동시에 감시합니다.
+저장한 뒤 <code>services.msc</code>에서 "BODA.CMS.Collector"를 <b>다시 시작</b>하면 반영됩니다.</div>
 
 <div class="step"><b class="no">3</b><b>라이선스 배치 (구매한 경우)</b><br>
-받은 <code>license.json</code> 파일을 exe 옆에 복사합니다. 없으면 평가판으로 동작하며,
-파일이 잘못되거나 기한이 지나면 기본(Basic) 기능만 동작합니다.</div>
+받은 <code>license.json</code> 파일을 <code>C:\BODA\Collector</code>에 복사하고 서비스를 다시 시작합니다.
+없으면 평가판으로 동작하며, 파일이 잘못되거나 기한이 지나면 기본(Basic) 기능만 동작합니다.</div>
 
-<div class="step"><b class="no">4</b><b>Windows 서비스로 등록</b><br>
-<b>관리자 권한</b> PowerShell에서:
-<pre style="background:#f0f3f7; padding:10px 14px; border-radius:6px; font-size:13px">powershell -File tools\install-service.ps1 -ExePath "C:\BODA\collector\BODA.CMS.Collector.exe"</pre>
-등록되면 즉시 시작되고, 이후 <b>PC를 재부팅해도 자동으로 다시 시작</b>됩니다.
-프로그램이 비정상 종료돼도 스스로 재시작합니다(10초→30초→60초 간격).</div>
-
-<div class="step"><b class="no">5</b><b>동작 확인</b><br>
+<div class="step"><b class="no">4</b><b>동작 확인</b><br>
 같은 PC 브라우저에서 <code>http://localhost:5100</code> — 로봇 카드가 보이면 성공.
 서비스 상태는 <code>services.msc</code>에서 "BODA.CMS.Collector"가 <b>실행 중</b>인지 확인.</div>
 
@@ -318,8 +319,8 @@ DB가 다른 PC에 있으면 <code>Host</code>에 그 PC의 IP를 적고, 그 PC
   <tr><th>하고 싶은 일</th><th>방법</th></tr>
   <tr><td>설정 변경 반영</td><td><code>appsettings.json</code> 수정 → <code>services.msc</code>에서 서비스 <b>다시 시작</b></td></tr>
   <tr><td>동작 기록(로그) 보기</td><td>Windows <b>이벤트 뷰어</b> → Windows 로그 → 응용 프로그램 → 원본 "BODA.CMS.Collector"</td></tr>
-  <tr><td>프로그램 업데이트</td><td>서비스 <b>중지</b> → 폴더의 파일을 새 버전으로 교체(설정 파일은 유지) → 서비스 <b>시작</b></td></tr>
-  <tr><td>서비스 제거</td><td>관리자 PowerShell: <code>powershell -File tools\install-service.ps1 -Uninstall</code></td></tr>
+  <tr><td>프로그램 업데이트</td><td>새 버전 <code>.msi</code>를 더블클릭 — 서비스 중지·교체·재시작까지 자동, <b>설정 파일(appsettings.json)은 보존</b></td></tr>
+  <tr><td>프로그램 제거</td><td>Windows <b>설정 → 앱 → 설치된 앱</b>에서 "BODA.CMS Collector (감시 서버)" 제거 — 설정 파일과 라이선스는 폴더에 남습니다</td></tr>
   <tr><td>데이터 저장(DB) 켜기</td><td><code>appsettings.json</code>의 <code>Storage:Enabled</code>를 <code>true</code>로 + DB 접속 문자열 설정 — 위 "데이터베이스(DB) 준비" 참고</td></tr>
 </table>
 
@@ -339,7 +340,8 @@ DB가 다른 PC에 있으면 <code>Host</code>에 그 PC의 IP를 적고, 그 PC
 
 <div class="step"><b class="no">2</b><b>새 모델 배포</b><br>
 새 모델 파일 2개를 프로그램 폴더 안의 <code>models\</code>에 복사해 덮어씁니다:
-감시 서버(예: <code>C:\BODA\collector\models\</code>)와, 모니터 화면 프로그램을 쓰는 PC에도 각각.</div>
+감시 서버(<code>C:\BODA\Collector\models\</code>)와, 모니터 화면을 쓰는 PC
+(<code>C:\Program Files\BODA.CMS\models\</code>)에도 각각.</div>
 
 <div class="step"><b class="no">3</b><b>재시작 후 확인</b><br>
 감시 서버는 <code>services.msc</code>에서 <b>다시 시작</b>, 모니터 화면은 프로그램을 다시 실행합니다.

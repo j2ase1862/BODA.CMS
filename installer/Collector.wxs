@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- BODA.CMS Collector(감시 서버) MSI — tools\package.ps1 이 빌드한다.
+     - 서비스 등록·시작·제거까지 MSI가 처리 (install-service.ps1 불필요)
+     - appsettings.json 은 NeverOverwrite+Permanent: 업그레이드·재설치 때 현장 로봇 구성을 절대 덮지 않는다
+     - 설치 경로 기본 C:\BODA\Collector — 현장에서 메모장으로 설정을 고치는 운영 관행 유지(Program Files 는 편집에 관리자 승격 필요)
+     전처리 변수(-d): Version, PayloadDir(공용 파일), MainDir(exe·appsettings.json) -->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+
+  <Package Name="BODA.CMS Collector (감시 서버)"
+           Manufacturer="BODA"
+           Version="$(var.Version)"
+           UpgradeCode="1E745A39-B36D-4C4F-8D8B-4CD187162E24"
+           Language="1042" Codepage="949"
+           Scope="perMachine"
+           InstallerVersion="500"
+           Compressed="yes">
+
+    <MajorUpgrade DowngradeErrorMessage="더 높은 버전이 이미 설치되어 있습니다. 먼저 제거한 뒤 설치하세요." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="TARGETDIR">
+      <Directory Id="BODAROOT" Name="BODA">
+        <!-- 비표준 루트(C:\BODA)라 자동 컴포넌트 GUID에 시드가 필요 (WIX0231) — 절대 바꾸지 말 것(업그레이드 동일성) -->
+        <Directory Id="INSTALLFOLDER" Name="Collector" ComponentGuidGenerationSeed="3A3DD846-6251-4823-BFF7-E58BA3D363F8" />
+      </Directory>
+    </StandardDirectory>
+    <!-- 기본 설치 위치를 윈도우 드라이브의 \BODA 로 고정 (TARGETDIR 직속은 기본이 ROOTDRIVE) -->
+    <SetDirectory Id="BODAROOT" Value="[WindowsVolume]BODA" />
+
+    <!-- 공용 파일 전체(런타임·드라이버·models·wwwroot·tools) — exe·appsettings.json 은 별도 컴포넌트 -->
+    <ComponentGroup Id="Payload" Directory="INSTALLFOLDER">
+      <Files Include="$(var.PayloadDir)\**" />
+    </ComponentGroup>
+
+    <!-- 서비스 본체: install-service.ps1 과 동일 시맨틱 (delayed-auto + 비정상 종료 시 10/30/60초 재시작) -->
+    <Component Id="MainExe" Directory="INSTALLFOLDER" Bitness="always64">
+      <File Id="CollectorExe" Source="$(var.MainDir)\BODA.CMS.Collector.exe" KeyPath="yes" />
+      <ServiceInstall Id="CollectorSvc"
+                      Name="BODA.CMS.Collector"
+                      DisplayName="BODA.CMS Collector"
+                      Description="BODA.CMS 협동로봇 상태 수집·무인 감시 서비스 (웹 대시보드 포함)"
+                      Type="ownProcess" Start="auto"
+                      ErrorControl="normal" Account="LocalSystem" Vital="yes">
+        <!-- 부팅 직후 네트워크가 뜨기 전 기동 실패를 피한다 (install-service.ps1 의 delayed-auto 와 동일) -->
+        <ServiceConfig DelayedAutoStart="yes" OnInstall="yes" OnReinstall="yes" />
+        <util:ServiceConfig FirstFailureActionType="restart"
+                            SecondFailureActionType="restart"
+                            ThirdFailureActionType="restart"
+                            RestartServiceDelayInSeconds="10"
+                            ResetPeriodInDays="1" />
+      </ServiceInstall>
+      <ServiceControl Id="CollectorSvcCtl" Name="BODA.CMS.Collector"
+                      Start="install" Stop="both" Remove="uninstall" Wait="yes" />
+    </Component>
+
+    <!-- 현장 구성 파일 — 업그레이드/재설치가 절대 덮지 않고, 제거 후에도 남긴다(로봇 목록·DB 접속 보존) -->
+    <Component Id="AppSettings" Directory="INSTALLFOLDER" NeverOverwrite="yes" Permanent="yes" Bitness="always64">
+      <File Id="AppSettingsJson" Source="$(var.MainDir)\appsettings.json" KeyPath="yes" />
+    </Component>
+
+    <Feature Id="Main" Level="1">
+      <ComponentGroupRef Id="Payload" />
+      <ComponentRef Id="MainExe" />
+      <ComponentRef Id="AppSettings" />
+    </Feature>
+
+  </Package>
+</Wix>
