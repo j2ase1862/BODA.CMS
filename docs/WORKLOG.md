@@ -4,6 +4,21 @@
 
 ---
 
+## 2026-07-09 (12) — 통합 설치 번들(PostgreSQL 동봉) + DB 자가 구성
+
+### 작업 내용
+- **`installer/Bundle.wxs` (WiX Burn)**: `BODA.CMS-collector-setup-{v}-x64.exe` (396MB) — 체인: PostgreSQL 16 무인 설치(레지스트리 `HKLM\SOFTWARE\PostgreSQL\Installations` 감지로 기설치 시 건너뜀, `Permanent`) → Collector MSI. EDB 설치본을 번들에 **동봉**해 오프라인 현장서 단일 파일로 끝. DB 암호 기본 `postgres`(appsettings 기본 접속 문자열과 일치·localhost 전용이라 무작위 암호의 보안 이득 없음, `setup.exe PgPassword=...`로 재정의 가능). EDB 설치본은 `dist/cache`에 캐시(패키징이 최초 1회 다운로드).
+- **DB 자가 구성(코드)**: `TimescaleFrameStore.EnsureDatabaseAsync` — 접속 시 3D000(DB 없음)이면 유지보수 DB(postgres)로 붙어 `CREATE DATABASE` 후 진행. psql/스크립트 개입 불필요.
+- **초기화 견고화**: `StorageWorker`가 `InitializeAsync` 실패를 백오프 재시도로 감쌈 — 기존엔 예외가 그대로 새어 .NET 8 기본(StopHost)으로 **호스트 전체가 내려갔음**. MSI가 서비스를 설치 직후 자동 시작하므로 "DB가 늦게/안 뜨는" 상황이 정상 경로가 됨 → 필수 수정.
+- install-db.ps1은 특수 케이스용으로 유지(원격 DB·기존 PG 재사용·MSI 단품에 나중 추가). 사용설명서 §10: 설치 1단계를 setup.exe로, DB 준비 절은 "대부분 필요 없음"으로 재구성.
+
+### 검증
+- DB 자가 구성 실검증: 로컬 PG17 대상 없는 DB명으로 Collector 기동 → "데이터베이스 …가 없어 새로 만들었습니다" + telemetry_frames/alerts 생성 확인(후 정리). 죽은 포트 대상 기동 → 초기화 실패 백오프 재시도 로그·프로세스 생존 확인. 유닛테스트 54/54.
+- 번들 추출(`wix burn extract`)로 동봉 페이로드 2건 확인 — a0=EDB exe(SHA256 원본 일치), a1=Collector MSI(D0CF 시그니처).
+- 미검증: 클린 PC에서 setup.exe 전 과정(PG 무인 설치 포함) 실행.
+
+---
+
 ## 2026-07-09 (11) — MSI 설치 방식 전환 + PostgreSQL 자동 설치 스크립트
 
 ### 작업 내용

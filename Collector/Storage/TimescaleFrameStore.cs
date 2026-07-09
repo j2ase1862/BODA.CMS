@@ -40,16 +40,20 @@ namespace BODA.CMS.Collector.Storage
             """;
 
         private readonly NpgsqlDataSource _dataSource;
+        private readonly string _connectionString;
         private readonly ILogger<TimescaleFrameStore> _logger;
 
         public TimescaleFrameStore(IOptions<CollectorOptions> options, ILogger<TimescaleFrameStore> logger)
         {
-            _dataSource = NpgsqlDataSource.Create(options.Value.Storage.ConnectionString);
+            _connectionString = options.Value.Storage.ConnectionString;
+            _dataSource = NpgsqlDataSource.Create(_connectionString);
             _logger = logger;
         }
 
         public async Task InitializeAsync(CancellationToken ct)
         {
+            await EnsureDatabaseAsync(ct);
+
             await using var conn = await _dataSource.OpenConnectionAsync(ct);
 
             await using (var cmd = new NpgsqlCommand(CreateTableSql, conn))
@@ -88,6 +92,33 @@ namespace BODA.CMS.Collector.Storage
                 CREATE INDEX IF NOT EXISTS idx_alerts_robot_time ON telemetry_alerts (robot_id, time DESC);
                 """, conn))
                 await alerts.ExecuteNonQueryAsync(ct);
+        }
+
+        /// <summary>
+        /// 접속 문자열의 데이터베이스가 서버에 없으면 만든다 — 통합 설치(PostgreSQL 동봉 번들) 직후의
+        /// 빈 서버에서 psql 없이 자가 구성되도록. 유지보수 DB(postgres) 접속 권한이 없으면 원래 예외 그대로.
+        /// </summary>
+        private async Task EnsureDatabaseAsync(CancellationToken ct)
+        {
+            try
+            {
+                await using var probe = await _dataSource.OpenConnectionAsync(ct);
+                return;
+            }
+            catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.InvalidCatalogName)
+            {
+                // 아래에서 생성 시도.
+            }
+
+            var builder = new NpgsqlConnectionStringBuilder(_connectionString);
+            string dbName = builder.Database ?? "boda_cms";
+            builder.Database = "postgres";
+
+            await using var maintenance = NpgsqlDataSource.Create(builder);
+            await using var conn = await maintenance.OpenConnectionAsync(ct);
+            await using var cmd = new NpgsqlCommand($"CREATE DATABASE \"{dbName.Replace("\"", "\"\"")}\"", conn);
+            await cmd.ExecuteNonQueryAsync(ct);
+            _logger.LogInformation("데이터베이스 {Db} 가 없어 새로 만들었습니다.", dbName);
         }
 
         public async Task WriteAlertAsync(AlertRecord a, CancellationToken ct)

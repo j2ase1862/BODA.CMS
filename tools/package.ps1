@@ -1,7 +1,8 @@
 # BODA.CMS 배포 패키징 (ROADMAP §4 P5)
 # 사용: powershell -File tools\package.ps1 [-Version 0.5.0]
-# 산출: dist\BODA.CMS-app-{v}-x64.msi      (WPF 모니터 — 시작 메뉴·바탕화면 바로가기)
-#       dist\BODA.CMS-collector-{v}-x64.msi (수집기+웹 — Windows 서비스 자동 등록, C:\BODA\Collector)
+# 산출: dist\BODA.CMS-collector-setup-{v}-x64.exe (통합 설치 — PostgreSQL 동봉, 오프라인 단일 파일. 권장)
+#       dist\BODA.CMS-app-{v}-x64.msi      (WPF 모니터 — 시작 메뉴·바탕화면 바로가기)
+#       dist\BODA.CMS-collector-{v}-x64.msi (수집기+웹 단품 — DB 없이. Windows 서비스 자동 등록, C:\BODA\Collector)
 #       dist\BODA.CMS-*-{v}-win-x64.zip     (xcopy 배포용 보조 — 파일 교체 업데이트·격리망)
 # self-contained — 현장 PC에 .NET 설치 불필요. 라이선스(license.json)는 패키지에 포함하지 않는다(고객별 발급).
 # MSI 빌드 도구: WiX 5 (dotnet tool). 없으면 자동 설치한다.
@@ -19,8 +20,18 @@ if (-not (Get-Command wix -ErrorAction SilentlyContinue)) {
     dotnet tool install --global wix --version 5.0.2
     $env:PATH = "$env:PATH;$env:USERPROFILE\.dotnet\tools"
 }
-if (-not ((wix extension list -g) -match "WixToolset\.Util\.wixext")) {
-    wix extension add -g WixToolset.Util.wixext/5.0.2
+$wixExts = wix extension list -g
+if (-not ($wixExts -match "WixToolset\.Util\.wixext")) { wix extension add -g WixToolset.Util.wixext/5.0.2 }
+if (-not ($wixExts -match "WixToolset\.BootstrapperApplications\.wixext")) { wix extension add -g WixToolset.BootstrapperApplications.wixext/5.0.2 }
+
+# 통합 설치 번들에 동봉할 PostgreSQL 설치본 (최초 1회 다운로드 후 dist\cache 에 캐시)
+$pgInstaller = Join-Path $dist "cache\postgresql-16.4-1-windows-x64.exe"
+if (-not (Test-Path $pgInstaller)) {
+    Write-Host "== PostgreSQL 설치본 다운로드 (약 357MB, 최초 1회) =="
+    New-Item -ItemType Directory -Force (Split-Path $pgInstaller) | Out-Null
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    Invoke-WebRequest -Uri "https://get.enterprisedb.com/postgresql/postgresql-16.4-1-windows-x64.exe" `
+        -OutFile $pgInstaller -UseBasicParsing
 }
 
 Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue
@@ -70,7 +81,14 @@ wix build (Join-Path $root "installer\Collector.wxs") -arch x64 -ext WixToolset.
     -d "Version=$Version" -d "PayloadDir=$colPayload" -d "MainDir=$colMain" -o $colMsi
 if ($LASTEXITCODE -ne 0) { throw "Collector MSI 빌드 실패" }
 
+Write-Host "== 통합 설치 번들 빌드 (PostgreSQL 동봉) =="
+$setupExe = Join-Path $dist "BODA.CMS-collector-setup-$Version-x64.exe"
+wix build (Join-Path $root "installer\Bundle.wxs") `
+    -ext WixToolset.BootstrapperApplications.wixext -ext WixToolset.Util.wixext `
+    -d "Version=$Version" -d "CollectorMsi=$colMsi" -d "PgInstaller=$pgInstaller" -o $setupExe
+if ($LASTEXITCODE -ne 0) { throw "통합 설치 번들 빌드 실패" }
+
 Remove-Item -Recurse -Force $stage
 
 Write-Host "== 완료 =="
-Get-Item $appMsi, $colMsi, $appZip, $colZip | ForEach-Object { "{0}  ({1:N1} MB)" -f $_.Name, ($_.Length / 1MB) }
+Get-Item $setupExe, $appMsi, $colMsi, $appZip, $colZip | ForEach-Object { "{0}  ({1:N1} MB)" -f $_.Name, ($_.Length / 1MB) }

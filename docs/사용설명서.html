@@ -222,19 +222,24 @@
   <tr><td><b>PC / 운영체제</b></td><td>Windows 10/11 <b>64비트(x64)</b></td><td>32비트 PC에서는 동작하지 않습니다</td></tr>
   <tr><td><b>.NET 등 실행 환경</b></td><td><b>설치 불필요</b></td><td>설치 파일(MSI)에 실행 환경이 포함(self-contained)되어 있습니다</td></tr>
   <tr><td><b>네트워크</b></td><td>로봇 컨트롤러 IP에 접근 가능한 <b>공장 내부망</b></td><td>다른 PC에서 대시보드를 보려면 TCP 5100 방화벽 허용(아래 참고)</td></tr>
-  <tr><td><b>데이터베이스(DB)</b></td><td><b>선택</b> — PostgreSQL (TimescaleDB 확장 권장)</td><td>실시간 감시만 쓰면 <b>DB 없이 동작</b>합니다. 필요 시 동봉된 스크립트로 <b>자동 설치</b>(아래 참고)</td></tr>
+  <tr><td><b>데이터베이스(DB)</b></td><td><b>선택</b> — PostgreSQL</td><td><b>통합 설치 파일(setup.exe)에 포함</b>되어 있어 따로 준비할 것이 없습니다. 실시간 감시만 쓰면 DB 없이도 동작(MSI 단품 설치)</td></tr>
   <tr><td><b>파이썬(Python)</b></td><td><b>선택</b> — AI 재학습 시에만</td><td>현장 PC가 아닌 개발/관리 PC에만 있으면 됩니다</td></tr>
 </table>
 <p><b>모니터 화면(BODA.CMS)</b>은 DB·파이썬이 전혀 필요 없습니다 —
 <code>BODA.CMS-app-버전-x64.msi</code>를 더블클릭해 설치하면 바탕화면에 "BODA.CMS 모니터" 바로가기가 생깁니다.
 아래 DB 준비는 <b>감시 서버(Collector)에서 데이터 저장을 켤 때만</b> 해당합니다.</p>
 
-<h3>데이터베이스(DB) 준비 — 이력 축적·AI 재학습을 쓸 때만</h3>
-<p>감시 서버는 수집한 데이터를 <b>PostgreSQL</b>에 기록합니다. 감시 서버와 같은 PC 또는
-내부망의 다른 서버에 설치하면 됩니다. 저장을 켜지 않으면(<code>Storage:Enabled = false</code>)
-이 단계는 통째로 건너뛰어도 됩니다 — 실시간 감시·알림·대시보드는 DB 없이 모두 동작합니다.</p>
+<h3>데이터베이스(DB) 준비 — 대부분 필요 없습니다</h3>
+<p><b>통합 설치 파일(<code>BODA.CMS-collector-setup-버전-x64.exe</code>)로 설치했다면 이 절은 건너뛰세요.</b>
+PostgreSQL 설치·DB 생성·테이블 생성까지 전부 자동으로 끝나 있습니다.
+아래는 특수한 경우에만 해당합니다:</p>
+<ul>
+  <li>DB를 감시 서버와 <b>다른 PC(별도 서버)</b>에 두고 싶을 때</li>
+  <li>이미 운영 중인 PostgreSQL 서버를 <b>재사용</b>하고 싶을 때 (비밀번호를 아는 경우)</li>
+  <li>MSI 단품으로 설치했다가 <b>나중에 DB를 추가</b>하고 싶을 때</li>
+</ul>
 
-<h4>방법 A. 자동 설치 (권장) — 명령 한 줄</h4>
+<h4>방법 A. 자동 구성 스크립트 — 명령 한 줄</h4>
 <p>감시 서버 설치 폴더(기본 <code>C:\BODA\Collector</code>)에서 <b>관리자 권한</b> PowerShell로:</p>
 <pre style="background:#f0f3f7; padding:10px 14px; border-radius:6px; font-size:13px">powershell -File tools\install-db.ps1</pre>
 <p>PostgreSQL 설치 → <code>boda_cms</code> DB 생성 → <code>appsettings.json</code>에 접속 정보 기록·저장 켜기 →
@@ -247,7 +252,7 @@ USB로 옮긴 뒤 경로를 지정해 실행합니다:
 <div class="step"><b class="no">※</b><b>PostgreSQL이 이미 설치된 PC라면</b> — 기존 서버를 재사용합니다.
 그 서버의 postgres 비밀번호를 알려주세요:
 <pre style="background:#f0f3f7; padding:10px 14px; border-radius:6px; font-size:13px">powershell -File tools\install-db.ps1 -Password "기존비밀번호"</pre></div>
-<span class="tip">💡 TimescaleDB 확장(시계열 성능·오래된 데이터 자동 정리)은 자동 설치에 포함되지 않습니다.
+<span class="tip">💡 TimescaleDB 확장(시계열 성능·오래된 데이터 자동 정리)은 통합 설치·자동 구성에 포함되지 않습니다.
 필요하면 아래 방법 B의 1번을 참고해 추가로 설치하세요 — 없어도 감시·저장은 정상 동작합니다.</span>
 
 <h4>방법 B. 수동 설치 — 직접 하고 싶을 때</h4>
@@ -280,13 +285,16 @@ DB가 다른 PC에 있으면 <code>Host</code>에 그 PC의 IP를 적고, 그 PC
 <h3>설치 순서 (감시 서버)</h3>
 
 <div class="step"><b class="no">1</b><b>설치 파일 실행</b><br>
-공급사에서 받은 <code>BODA.CMS-collector-버전-x64.msi</code>를 <b>더블클릭</b>하고
-권한 확인 창(UAC)에서 "예"를 누르면 설치가 끝납니다. 이것만으로:
+공급사에서 받은 <b>통합 설치 파일</b> <code>BODA.CMS-collector-setup-버전-x64.exe</code>를 <b>더블클릭</b>하고
+"설치" 버튼 → 권한 확인 창(UAC)에서 "예"를 누르면 끝입니다. 이것만으로:
 <ul style="margin:6px 0">
+  <li>데이터 저장용 <b>PostgreSQL DB 자동 설치</b> (이미 설치된 PC에서는 자동으로 건너뜀) — 인터넷 불필요, 설치 파일에 동봉</li>
   <li><code>C:\BODA\Collector</code>에 프로그램 설치 (.NET 등 별도 설치 불필요)</li>
   <li>Windows 서비스 "BODA.CMS.Collector" <b>자동 등록·시작</b> — 재부팅해도 자동 시작, 비정상 종료 시 스스로 재시작(10초→30초→60초)</li>
+  <li>첫 시작 때 감시 서버가 <code>boda_cms</code> 데이터베이스·테이블을 <b>스스로 생성</b> — 사람이 할 일 없음</li>
 </ul>
-<span class="tip">💡 예전 zip+스크립트 방식으로 설치했던 PC라면, MSI 설치 <b>전에</b> 관리자 PowerShell에서
+<span class="tip">💡 DB 없이 실시간 감시만 쓰려면 <code>BODA.CMS-collector-버전-x64.msi</code>(단품)를 대신 설치하세요.
+예전 zip+스크립트 방식으로 설치했던 PC라면, 설치 <b>전에</b> 관리자 PowerShell에서
 <code>powershell -File tools\install-service.ps1 -Uninstall</code> 로 이전 서비스를 먼저 제거하세요.</span></div>
 
 <div class="step"><b class="no">2</b><b>감시할 로봇 등록</b><br>
@@ -321,7 +329,7 @@ DB가 다른 PC에 있으면 <code>Host</code>에 그 PC의 IP를 적고, 그 PC
   <tr><td>동작 기록(로그) 보기</td><td>Windows <b>이벤트 뷰어</b> → Windows 로그 → 응용 프로그램 → 원본 "BODA.CMS.Collector"</td></tr>
   <tr><td>프로그램 업데이트</td><td>새 버전 <code>.msi</code>를 더블클릭 — 서비스 중지·교체·재시작까지 자동, <b>설정 파일(appsettings.json)은 보존</b></td></tr>
   <tr><td>프로그램 제거</td><td>Windows <b>설정 → 앱 → 설치된 앱</b>에서 "BODA.CMS Collector (감시 서버)" 제거 — 설정 파일과 라이선스는 폴더에 남습니다</td></tr>
-  <tr><td>데이터 저장(DB) 켜기</td><td><code>appsettings.json</code>의 <code>Storage:Enabled</code>를 <code>true</code>로 + DB 접속 문자열 설정 — 위 "데이터베이스(DB) 준비" 참고</td></tr>
+  <tr><td>데이터 저장(DB) 켜기</td><td>통합 설치(setup.exe)면 <b>이미 켜져 있음</b>. MSI 단품 설치에 나중에 추가하려면 위 "데이터베이스(DB) 준비" 참고</td></tr>
 </table>
 
 <h3>AI 모델 재학습 — 우리 로봇에 맞게 똑똑하게 만들기</h3>

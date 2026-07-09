@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- BODA.CMS 감시 서버 통합 설치 번들 (WiX Burn) — tools\package.ps1 이 빌드한다.
+     체인: PostgreSQL 16 무인 설치(이미 있으면 자동 건너뜀) → Collector MSI.
+     DB 생성·테이블은 Collector 가 첫 시작 때 스스로 처리(TimescaleFrameStore.EnsureDatabaseAsync)
+     하므로 설치 후 손댈 것이 없다. DB 없이 쓰려면 이 번들 대신 collector MSI 단품을 설치한다.
+     전처리 변수(-d): Version, CollectorMsi, PgInstaller(EDB 설치본 exe — dist\cache 에 캐시) -->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+
+  <Bundle Name="BODA.CMS 감시 서버 통합 설치 (DB 포함)"
+          Manufacturer="BODA"
+          Version="$(var.Version)"
+          UpgradeCode="44D1A583-9724-4536-9FB1-89713431A4F1">
+
+    <BootstrapperApplication>
+      <bal:WixStandardBootstrapperApplication Theme="hyperlinkLicense" LicenseUrl="" />
+    </BootstrapperApplication>
+
+    <!-- DB 암호 — 쉬운 운영을 위해 기본값을 appsettings.json 기본 접속 문자열과 맞춘다.
+         DB는 localhost 접속만 허용(EDB 기본 pg_hba)이라 내부망 노출이 없고, 어차피 접속 문자열이
+         설정 파일에 평문으로 있어 무작위 암호도 보안 이득이 없다. 바꾸려면:
+         setup.exe PgPassword=원하는암호  (이후 appsettings.json 의 Password 도 같이 수정) -->
+    <Variable Name="PgPassword" bal:Overridable="yes" Value="postgres" />
+
+    <!-- 이미 설치된 PostgreSQL 감지 (EDB 계열 설치본의 표준 레지스트리 — winget 설치 포함) -->
+    <util:RegistrySearch Id="PgDetect" Variable="PgDetected"
+                         Root="HKLM" Key="SOFTWARE\PostgreSQL\Installations"
+                         Result="exists" Bitness="always64" />
+
+    <Chain>
+      <ExePackage Id="PostgreSQL"
+                  DisplayName="PostgreSQL 16 (데이터 저장용 DB)"
+                  DetectCondition="PgDetected"
+                  Permanent="yes"
+                  PerMachine="yes"
+                  InstallArguments="--mode unattended --unattendedmodeui none --superaccount postgres --superpassword [PgPassword] --serverport 5432 --servicename postgresql-x64-16 --disable-components stackbuilder">
+        <ExePackagePayload SourceFile="$(var.PgInstaller)" />
+      </ExePackage>
+
+      <MsiPackage Id="Collector" SourceFile="$(var.CollectorMsi)" />
+    </Chain>
+
+  </Bundle>
+</Wix>

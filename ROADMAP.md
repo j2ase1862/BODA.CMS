@@ -190,7 +190,8 @@ public sealed class RobotCapabilities
 - [x] **구독/라이선스 모델**: RSA-SHA256 서명 라이선스 파일(`license.json`) — `Core.Licensing.LicenseVerifier`. 파일 없음=평가판(전체 기능), 서명 불량/만료=Basic 강등, 정식=등급대로. **등급 게이팅은 capability 자동 판정(§1)과 연동** — WPF(카드 시작 차단)·Collector(채널 미기동) 양쪽 강제. 발급 도구 `tools/LicGen`(init/issue). ⚠️ `dev-keys/`는 개발 서명키 — 운영 발급 키는 저장소 밖 보안 저장소에서 관리하고 Core 공개키 상수 교체.
 - [x] **웹 대시보드**: Collector가 ASP.NET Core 호스트로 승격 — `/api/status`(채널 상태·수집률·CBM/ML 스냅샷)·`/api/alerts` REST + 다크 테마 정적 대시보드(1초 폴링, http://localhost:5100). 다중 로봇·다중 사용자 원격 모니터링. (Blazor/SignalR 스트리밍·BODA.VMS.Web 자산 통합은 후속 — 현 대시보드는 폴링 기반으로 의존성 제로.)
 - [x] **Collector 무인 감시** (P2/P3 잔여 통합): 채널당 CBM+ML 부착, 알림은 대시보드 링(200건) + `telemetry_alerts` 테이블 저장(Storage on 시).
-- [x] **패키징**: `tools/package.ps1` — WPF 앱·Collector를 win-x64 self-contained publish 후 **MSI(WiX 5, `installer/*.wxs`)** + 보조 zip. Collector MSI는 서비스 등록·시작·장애 재시작까지 처리(C:\BODA\Collector, appsettings는 NeverOverwrite로 업그레이드에도 보존), 앱 MSI는 시작 메뉴·바탕화면 바로가기. 현장 PC .NET 설치 불필요, 라이선스는 패키지 미포함·고객별 발급. 실측: app msi 67.6MB / collector msi 43.4MB. DB는 `tools/install-db.ps1`로 원커맨드 구성(EDB 무인 설치, 오프라인 지원). ⚠ WiX는 5.0.x 고정 — 6+는 OSMF 동의 필요.
+- [x] **패키징**: `tools/package.ps1` — WPF 앱·Collector를 win-x64 self-contained publish 후 **MSI(WiX 5, `installer/*.wxs`)** + 보조 zip. Collector MSI는 서비스 등록·시작·장애 재시작까지 처리(C:\BODA\Collector, appsettings는 NeverOverwrite로 업그레이드에도 보존), 앱 MSI는 시작 메뉴·바탕화면 바로가기. 현장 PC .NET 설치 불필요, 라이선스는 패키지 미포함·고객별 발급. 실측: app msi 67.6MB / collector msi 43.4MB. ⚠ WiX는 5.0.x 고정 — 6+는 OSMF 동의 필요.
+- [x] **통합 설치 번들**: `installer/Bundle.wxs`(Burn) — `collector-setup-{v}-x64.exe`(396MB, PostgreSQL 16 동봉·오프라인 단일 파일). 기설치 PG는 레지스트리 감지로 건너뜀. DB·테이블은 Collector가 첫 시작 때 자가 생성(`EnsureDatabaseAsync`, 3D000→CREATE DATABASE) + 저장소 초기화 실패는 백오프 재시도(StopHost 방지). 원격 DB·기존 PG 재사용은 `tools/install-db.ps1`.
 - [ ] 자동 업데이트 채널·드라이버 모듈 단위 배포 — 고객 배포 시점에
 - [ ] Blazor/SignalR 실시간 대시보드 + 사용자 인증 — 다중 고객 SaaS화 시점에
 

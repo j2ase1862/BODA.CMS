@@ -25,7 +25,20 @@ namespace BODA.CMS.Collector.Storage
 
         protected override async Task ExecuteAsync(CancellationToken ct)
         {
-            await _store.InitializeAsync(ct);
+            // 초기화 실패(DB 미기동·미설치)가 호스트를 내리지 않도록 백오프 재시도 —
+            // 서비스가 설치 직후 자동 시작되므로 DB가 늦게 준비되는 상황이 정상 경로다.
+            for (int initTries = 1; ; initTries++)
+            {
+                try { await _store.InitializeAsync(ct); break; }
+                catch (OperationCanceledException) { return; }
+                catch (Exception ex)
+                {
+                    TimeSpan delay = BackoffPolicy.NextDelay(initTries);
+                    _logger.LogError(ex, "저장소 초기화 실패({Tries}회) — {Delay} 후 재시도 (수집은 계속, 버퍼 한도 초과분은 드롭).",
+                        initTries, delay);
+                    try { await Task.Delay(delay, ct); } catch (OperationCanceledException) { return; }
+                }
+            }
 
             var batch = new List<TelemetryRecord>(_options.BatchSize);
             var flushInterval = TimeSpan.FromMilliseconds(_options.FlushIntervalMs);
