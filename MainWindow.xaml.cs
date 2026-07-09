@@ -44,7 +44,8 @@ namespace BODA.CMS
             // 라이선스 (P5): exe 옆 license.json — 없으면 평가판, 불량/만료면 Basic 강등.
             LicenseStatus license = LicenseVerifier.Load(Path.Combine(AppContext.BaseDirectory, "license.json"));
 
-            DataContext = new MainViewModel(modbus, vendors, license);
+            // 제조사/IP 선택을 감시 서버(웹 대시보드)에도 자동 반영 — 서버가 없으면 로그만 남기고 무시.
+            DataContext = new MainViewModel(modbus, vendors, license, new Services.CollectorSync());
         }
     }
 }

@@ -42,6 +42,12 @@ namespace BODA.CMS.Collector.Dashboard
         private readonly Dictionary<(string Robot, string Channel), Entry> _entries = new();
         private readonly LinkedList<AlertRecord> _alerts = new();
 
+        /// <summary>로봇 재구성 시 채널 등록을 비운다 — 알림 링은 이력이므로 유지.</summary>
+        public void ClearChannels()
+        {
+            lock (_gate) _entries.Clear();
+        }
+
         public void Register(string robotId, IRobotTelemetrySource source, CbmMonitor cbm, MlAnomalyMonitor? ml)
         {
             RobotCapabilities c = source.Capabilities;

@@ -55,7 +55,9 @@ builder.Services.AddSingleton<IFrameStore>(sp =>
     sp.GetRequiredService<IOptions<CollectorOptions>>().Value.Storage.Enabled
         ? ActivatorUtilities.CreateInstance<TimescaleFrameStore>(sp)
         : ActivatorUtilities.CreateInstance<LogFrameStore>(sp));
-builder.Services.AddHostedService<CollectorService>();
+// CollectorService 는 REST(/api/robots)가 재구성을 호출해야 하므로 싱글턴으로도 노출.
+builder.Services.AddSingleton<CollectorService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<CollectorService>());
 builder.Services.AddHostedService<StorageWorker>();
 
 WebApplication app = builder.Build();
@@ -74,4 +76,61 @@ app.MapGet("/api/status", (DashboardState dashboard, LicenseStatus license) => R
 app.MapGet("/api/alerts", (DashboardState dashboard, int? take) =>
     Results.Json(dashboard.GetAlerts(Math.Clamp(take ?? 50, 1, 200))));
 
+// ── 로봇 구성 조회/교체 — WPF 앱의 제조사 전환이 대시보드에도 반영되도록 (내부망 전용 API) ──
+app.MapGet("/api/robots", (CollectorService collector) => Results.Json(collector.CurrentRobots));
+
+app.MapPut("/api/robots", async (List<RobotOptions> robots, CollectorService collector,
+    ILogger<Program> logger, CancellationToken ct) =>
+{
+    foreach (RobotOptions r in robots)
+    {
+        if (string.IsNullOrWhiteSpace(r.RobotId) || string.IsNullOrWhiteSpace(r.Vendor) || string.IsNullOrWhiteSpace(r.Host))
+            return Results.BadRequest(new { error = "robotId/vendor/host 는 필수입니다." });
+        if (!collector.KnownVendors.Contains(r.Vendor, StringComparer.OrdinalIgnoreCase))
+            return Results.BadRequest(new { error = $"미등록 벤더 '{r.Vendor}' — 사용 가능: {string.Join(", ", collector.KnownVendors)}" });
+    }
+    if (robots.Select(r => r.RobotId).Distinct(StringComparer.OrdinalIgnoreCase).Count() != robots.Count)
+        return Results.BadRequest(new { error = "RobotId 가 중복됩니다." });
+
+    int pumps = await collector.ReconfigureAsync(robots, ct);
+
+    // 재시작 후에도 유지되도록 appsettings.json 에 영속화 — 실패해도 런타임 적용은 유효.
+    try { PersistRobots(robots); }
+    catch (Exception ex) { logger.LogError(ex, "로봇 구성 영속화 실패 — 재시작하면 이전 구성으로 돌아갑니다."); }
+
+    return Results.Json(new { robots = robots.Count, pumps });
+});
+
 await app.RunAsync();
+
+// 로봇 목록만 갈아끼우고 나머지(Urls·Storage·로깅)는 그대로 보존한다.
+static void PersistRobots(List<RobotOptions> robots)
+{
+    string path = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+    System.Text.Json.Nodes.JsonNode root = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(path))
+        ?? new System.Text.Json.Nodes.JsonObject();
+    if (root["Collector"] is not System.Text.Json.Nodes.JsonObject collector)
+        root["Collector"] = collector = new System.Text.Json.Nodes.JsonObject();
+
+    var list = new System.Text.Json.Nodes.JsonArray();
+    foreach (RobotOptions r in robots)
+    {
+        var o = new System.Text.Json.Nodes.JsonObject
+        {
+            ["RobotId"] = r.RobotId,
+            ["Vendor"] = r.Vendor,
+            ["Host"] = r.Host,
+        };
+        if (r.Port is int port) o["Port"] = port;
+        if (r.Channels is { Count: > 0 }) o["Channels"] = new System.Text.Json.Nodes.JsonArray(
+            r.Channels.Select(c => (System.Text.Json.Nodes.JsonNode)c).ToArray());
+        list.Add(o);
+    }
+    collector["Robots"] = list;
+
+    File.WriteAllText(path, root.ToJsonString(new System.Text.Json.JsonSerializerOptions
+    {
+        WriteIndented = true,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping, // 한글 RobotId 를 이스케이프 없이
+    }));
+}

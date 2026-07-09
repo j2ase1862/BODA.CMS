@@ -33,10 +33,12 @@ namespace BODA.CMS.ViewModels
 
         private VendorDescriptor _selectedVendor;
         private readonly LicenseStatus _license;
+        private readonly Services.CollectorSync? _collectorSync;
 
         public MainViewModel(ModbusConnectionService probeConnection, IReadOnlyList<VendorDescriptor> vendors,
-            LicenseStatus? license = null)
+            LicenseStatus? license = null, Services.CollectorSync? collectorSync = null)
         {
+            _collectorSync = collectorSync;
             if (vendors.Count == 0) throw new ArgumentException("벤더 카탈로그가 비어 있습니다.", nameof(vendors));
 
             _probe = probeConnection;
@@ -102,6 +104,7 @@ namespace BODA.CMS.ViewModels
                 Sources.Clear();
                 LoadSources(vendor);
                 AppendLog($"제조사 전환: {vendor.DisplayName} — 채널 {Sources.Count}개 로드.");
+                await SyncCollectorAsync(vendor);
             }
             catch (Exception ex)
             {
@@ -169,6 +172,7 @@ namespace BODA.CMS.ViewModels
                 IsConnected = true;
                 SetStatus("연결 성공", Brushes.SeaGreen);
                 AppendLog("TCP 연결 성공.");
+                await SyncCollectorAsync(SelectedVendor); // IP가 확정된 시점 — 감시 서버에도 반영
 
                 // 시험 읽기(선택): 홀딩 레지스터 40001~ 4개. 실패해도 연결은 정상일 수 있음.
                 try
@@ -188,6 +192,14 @@ namespace BODA.CMS.ViewModels
                 SetStatus("연결 실패", Brushes.Firebrick);
                 AppendLog("연결 실패: " + ex.GetBaseException().Message);
             }
+        }
+
+        /// <summary>선택한 제조사/IP를 감시 서버(웹 대시보드)에 최선 노력으로 반영 — 결과는 로그로만.</summary>
+        private async Task SyncCollectorAsync(VendorDescriptor vendor)
+        {
+            if (_collectorSync is null) return;
+            string result = await _collectorSync.TrySyncAsync(vendor.VendorId, IpAddress.Trim());
+            AppendLogSafe(result);
         }
 
         private void SetStatus(string message, Brush brush)

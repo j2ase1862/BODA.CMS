@@ -4,6 +4,21 @@
 
 ---
 
+## 2026-07-09 (13) — 앱 제조사 선택 → 웹 대시보드 자동 반영
+
+### 작업 내용
+- **문제**: 앱에서 제조사를 바꿔도 대시보드는 Collector 의 appsettings.json 대로(두산) 수집 — json 수동 수정 + 서비스 재시작 필요했음.
+- **Collector — 실행 중 로봇 재구성**: `CollectorService.ReconfigureAsync` — 펌프 세트에 링크드 CTS 도입, "현재 세트 취소 → 종료 대기 → `DashboardState.ClearChannels()` → 새 세트 기동"을 세마포어로 직렬화. Robots 비어도 서비스가 살아서 재구성 대기(기존엔 return).
+- **REST**: `GET /api/robots`(현재 구성) + `PUT /api/robots`(전체 교체 — 벤더 카탈로그 검증, RobotId 중복 거부, 적용 후 appsettings.json 의 Robots 만 JsonNode 로 치환 영속화·나머지 설정 보존). 내부망 전용 API(대시보드와 동일 신뢰 모델).
+- **앱 — `Services/CollectorSync`**: 제조사 전환·연결 성공 시 PUT 호출(3초 타임아웃, 최선 노력·결과는 앱 로그). 대상 기본 localhost:5100, 원격은 `BODA_COLLECTOR_URL`. **감시 로봇이 2대 이상이면 자동 반영 생략**(1대 진단 화면이 현장 다중 구성을 덮지 않게). 같은 벤더면 기존 RobotId(현장 이름) 보존.
+- **대시보드 즉시 노출**: 펌프의 `Register` 를 ML 로드(콜드 10초+) 앞으로 — 전환 후 카드가 바로 뜨고 ML 은 준비되면 갱신 재등록.
+
+### 검증
+- 콘솔 Collector 실기동 E2E: sim 기동 → PUT jaka 교체 {robots:1,pumps:1} → 2초 내 /api/status 에 jaka-01/monitor 노출 → bin appsettings.json 에 Robots 만 교체·Storage/Urls 보존 확인 → 미등록 벤더(fanuc) 400 거부. 유닛테스트 54/54.
+- 미검증: WPF 앱 UI 조작 → 대시보드 반영 실연(수동 확인 권장 — 앱 로그에 "감시 서버(대시보드)에 반영됨" 문구).
+
+---
+
 ## 2026-07-09 (12) — 통합 설치 번들(PostgreSQL 동봉) + DB 자가 구성
 
 ### 작업 내용

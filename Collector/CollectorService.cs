@@ -13,6 +13,7 @@ namespace BODA.CMS.Collector
     /// 펌프: 접속 → 프레임을 버퍼로 + CBM/ML 무인 감시 → Faulted 감지 시 지수 백오프 재접속.
     /// 알림은 대시보드 링 + 저장소로. 라이선스 등급을 넘는 채널은 기동하지 않는다 (P5).
     /// <see cref="IRobotTelemetrySource"/> 계약에만 의존 — 벤더 분기 없음.
+    /// 로봇 구성은 실행 중 교체 가능(<see cref="ReconfigureAsync"/>) — PUT /api/robots 가 호출.
     /// </summary>
     public sealed class CollectorService : BackgroundService
     {
@@ -23,6 +24,19 @@ namespace BODA.CMS.Collector
         private readonly DashboardState _dashboard;
         private readonly LicenseStatus _license;
         private readonly ILogger<CollectorService> _logger;
+
+        // 현재 펌프 세트의 수명 — 재구성은 "세트 취소 → 종료 대기 → 새 세트 기동" 순서로만 진행.
+        private readonly SemaphoreSlim _reconfigGate = new(1, 1);
+        private CancellationTokenSource? _setCts;
+        private Task _runningSet = Task.CompletedTask;
+        private CancellationToken _serviceCt = CancellationToken.None;
+        private volatile IReadOnlyList<RobotOptions> _currentRobots = Array.Empty<RobotOptions>();
+
+        /// <summary>현재 적용된 로봇 구성 (GET /api/robots).</summary>
+        public IReadOnlyList<RobotOptions> CurrentRobots => _currentRobots;
+
+        /// <summary>등록된 벤더 id 목록 — API 입력 검증용.</summary>
+        public IReadOnlyCollection<string> KnownVendors => _catalog.Keys.ToArray();
 
         public CollectorService(
             IEnumerable<VendorDescriptor> catalog,
@@ -44,16 +58,47 @@ namespace BODA.CMS.Collector
 
         protected override async Task ExecuteAsync(CancellationToken ct)
         {
+            _serviceCt = ct;
             _logger.LogInformation("{License}", _license.Description);
 
             if (_options.Robots.Count == 0)
+                _logger.LogWarning("수집 대상 로봇이 없습니다 — appsettings.json Collector:Robots 또는 PUT /api/robots 로 구성하세요.");
+
+            await StartSetAsync(_options.Robots, ct);
+
+            // 재구성 요청을 받기 위해 서비스 수명 유지 — 펌프 세트는 ReconfigureAsync가 교체한다.
+            try { await Task.Delay(Timeout.Infinite, ct); }
+            catch (OperationCanceledException) { }
+
+            _setCts?.Cancel();
+            try { await _runningSet; } catch { /* 종료 경로 — 펌프 자체가 로그를 남긴다 */ }
+        }
+
+        /// <summary>
+        /// 로봇 구성을 통째로 교체: 현재 펌프 전부 정지 → 대시보드 채널 초기화 → 새 구성 기동.
+        /// 반환값은 기동한 펌프 수. 호출자가 영속화(appsettings.json)를 책임진다.
+        /// </summary>
+        public async Task<int> ReconfigureAsync(IReadOnlyList<RobotOptions> robots, CancellationToken ct)
+        {
+            await _reconfigGate.WaitAsync(ct);
+            try
             {
-                _logger.LogWarning("수집 대상 로봇이 없습니다 — appsettings.json Collector:Robots 를 구성하세요.");
-                return;
+                _setCts?.Cancel();
+                try { await _runningSet; } catch { /* 취소로 인한 종료 — 정상 */ }
+                _dashboard.ClearChannels();
+                _logger.LogInformation("로봇 구성 교체: {Count}대로 재기동.", robots.Count);
+                return await StartSetAsync(robots, _serviceCt);
             }
+            finally { _reconfigGate.Release(); }
+        }
+
+        private async Task<int> StartSetAsync(IReadOnlyList<RobotOptions> robots, CancellationToken serviceCt)
+        {
+            var setCts = CancellationTokenSource.CreateLinkedTokenSource(serviceCt);
+            CancellationToken ct = setCts.Token;
 
             var pumps = new List<Task>();
-            foreach (RobotOptions robot in _options.Robots)
+            foreach (RobotOptions robot in robots)
             {
                 if (!_catalog.TryGetValue(robot.Vendor, out VendorDescriptor? vendor))
                 {
@@ -85,8 +130,11 @@ namespace BODA.CMS.Collector
                 }
             }
 
-            _logger.LogInformation("수집 펌프 {Count}개 기동 (로봇 {Robots}대).", pumps.Count, _options.Robots.Count);
-            await Task.WhenAll(pumps);
+            _setCts = setCts;
+            _runningSet = Task.WhenAll(pumps);
+            _currentRobots = robots;
+            _logger.LogInformation("수집 펌프 {Count}개 기동 (로봇 {Robots}대).", pumps.Count, robots.Count);
+            return pumps.Count;
         }
 
         private async Task RunPumpAsync(RobotOptions robot, IRobotTelemetrySource source, CancellationToken ct)
@@ -101,9 +149,10 @@ namespace BODA.CMS.Collector
 
             // 무인 감시: 채널당 CBM + (모델 있으면) ML — WPF와 동일 파이프라인 (P2/P3의 P5 통합).
             var cbm = new CbmMonitor();
+            _dashboard.Register(robot.RobotId, source, cbm, null); // 즉시 노출 — ML 로드(콜드 10초+)를 기다리지 않는다
             MlAnomalyMonitor? ml = MlAnomalyMonitor.TryLoad(Path.Combine(AppContext.BaseDirectory, "models"));
             ml?.Attach(cbm);
-            _dashboard.Register(robot.RobotId, source, cbm, ml);
+            if (ml is not null) _dashboard.Register(robot.RobotId, source, cbm, ml); // ML 준비 후 갱신
 
             // 구독은 펌프 수명 동안 1회 — 프레임은 연결된 동안만 흐른다.
             TaskCompletionSource faulted = NewFaultSignal();
