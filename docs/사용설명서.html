@@ -223,7 +223,7 @@
   <tr><td><b>.NET 등 실행 환경</b></td><td><b>설치 불필요</b></td><td>설치 파일(MSI)에 실행 환경이 포함(self-contained)되어 있습니다</td></tr>
   <tr><td><b>네트워크</b></td><td>로봇 컨트롤러 IP에 접근 가능한 <b>공장 내부망</b></td><td>다른 PC에서 대시보드를 보려면 TCP 5100 방화벽 허용(아래 참고)</td></tr>
   <tr><td><b>데이터베이스(DB)</b></td><td><b>선택</b> — PostgreSQL</td><td><b>통합 설치 파일(setup.exe)에 포함</b>되어 있어 따로 준비할 것이 없습니다. 실시간 감시만 쓰면 DB 없이도 동작(MSI 단품 설치)</td></tr>
-  <tr><td><b>파이썬(Python)</b></td><td><b>선택</b> — AI 재학습 시에만</td><td>현장 PC가 아닌 개발/관리 PC에만 있으면 됩니다</td></tr>
+  <tr><td><b>파이썬(Python)</b></td><td><b>선택</b> — AI 재학습 시에만</td><td>재학습할 감시 서버 PC에 설치 (<code>winget install Python.Python.3.12</code>) — 아래 "AI 모델 재학습" 참고</td></tr>
 </table>
 <p><b>모니터 화면(BODA.CMS)</b>은 DB·파이썬이 전혀 필요 없습니다 —
 <code>BODA.CMS-app-버전-x64.msi</code>를 더블클릭해 설치하면 바탕화면에 "BODA.CMS 모니터" 바로가기가 생깁니다.
@@ -343,21 +343,22 @@ DB가 다른 PC에 있으면 <code>Host</code>에 그 PC의 IP를 적고, 그 PC
 데이터 저장(DB)을 켜고 <b>정상 운전 데이터가 하루 이상</b> 쌓이면,
 그 데이터로 재학습해 우리 로봇 전용 모델로 교체할 수 있습니다. 오탐이 크게 줄어듭니다.</p>
 
-<div class="step"><b class="no">1</b><b>재학습 실행</b> (파이썬이 설치된 개발/관리 PC의 저장소 폴더에서)
-<pre style="background:#f0f3f7; padding:10px 14px; border-radius:6px; font-size:13px">python tools\ml\retrain_anomaly.py --since 2026-07-09T08:00:00+09:00</pre>
-<code>--since</code> 뒤에는 <b>로봇이 정상 작업을 시작한 시각</b>을 적습니다.
-필요한 패키지가 없다고 나오면: <code>pip install numpy scikit-learn skl2onnx psycopg2-binary onnxruntime</code>
-<span class="tip">💡 학습이 끝나면 저장소의 <code>models\</code> 폴더에 새 모델 파일 2개
-(<code>anomaly_iforest.onnx</code>, <code>anomaly_iforest.json</code>)가 만들어집니다.</span></div>
+<div class="step"><b class="no">1</b><b>재학습 실행</b> — 감시 서버 PC에서 <b>관리자 PowerShell</b>을 열고 한 줄이면 됩니다
+(파이썬만 미리 설치: <code>winget install Python.Python.3.12</code>)
+<pre style="background:#f0f3f7; padding:10px 14px; border-radius:6px; font-size:13px">powershell -ExecutionPolicy Bypass -File C:\BODA\Collector\tools\retrain.ps1</pre>
+기본으로 <b>최근 24시간</b> 데이터로 학습합니다. 시작 시각을 직접 정하려면
+<code>-Since 2026-07-10T08:00</code> 처럼 붙이세요 (로봇이 정상 작업을 시작한 시각).
+<span class="tip">💡 이 스크립트가 필요한 패키지 설치 → 재학습 → 감시 서버의 <code>models\</code> 교체(기존 모델은
+<code>backup-날짜\</code>로 백업) → 서비스 재시작까지 한 번에 처리합니다.</span></div>
 
-<div class="step"><b class="no">2</b><b>새 모델 배포</b><br>
-새 모델 파일 2개를 프로그램 폴더 안의 <code>models\</code>에 복사해 덮어씁니다:
-감시 서버(<code>C:\BODA\Collector\models\</code>)와, 모니터 화면을 쓰는 PC
-(<code>C:\Program Files\BODA.CMS\models\</code>)에도 각각.</div>
+<div class="step"><b class="no">2</b><b>모니터 화면 PC에도 배포</b> (다른 PC에서 모니터 앱을 쓰는 경우)<br>
+감시 서버의 <code>C:\BODA\Collector\models\</code>에 생긴 새 모델 파일 2개
+(<code>anomaly_iforest.onnx</code>, <code>anomaly_iforest.json</code>)를 모니터 PC의
+<code>C:\Program Files\BODA.CMS\models\</code>에 복사해 덮어쓰고, 모니터 앱을 다시 실행합니다.
+<span class="tip">💡 감시 서버와 모니터 앱이 같은 PC라면 스크립트가 둘 다 교체해 주므로 이 단계는 앱 재실행만 하면 됩니다.</span></div>
 
-<div class="step"><b class="no">3</b><b>재시작 후 확인</b><br>
-감시 서버는 <code>services.msc</code>에서 <b>다시 시작</b>, 모니터 화면은 프로그램을 다시 실행합니다.
-전보다 "ML 이상" 알림이 눈에 띄게 줄었으면 성공입니다.</div>
+<div class="step"><b class="no">3</b><b>확인</b><br>
+전보다 "ML 이상" 알림이 눈에 띄게 줄었으면 성공입니다. 하루 정도 지켜보세요.</div>
 
 <div class="warn">⚠️ <b>정상 데이터로만 학습하세요.</b> <code>--since</code> 기간에 로봇이 이상하게 돌던 날·장시간
 멈춰 있던 날이 섞이면 AI가 그 상태를 "평소"로 외워버려 정작 진짜 이상을 놓칩니다.

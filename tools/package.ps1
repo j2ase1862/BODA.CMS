@@ -48,9 +48,11 @@ dotnet publish (Join-Path $root "Collector\BODA.CMS.Collector.csproj") -c Releas
 if ($LASTEXITCODE -ne 0) { throw "Collector publish 실패" }
 
 # 설치 스크립트 동봉 — DB 자동 구성(install-db.ps1)·zip 배포용 서비스 등록(install-service.ps1)
+# + 현장 재학습 도구(retrain.ps1 → tools\ml\retrain_anomaly.py, 상대 경로 유지)
 $colTools = Join-Path $stage "collector\tools"
-New-Item -ItemType Directory -Force $colTools | Out-Null
-Copy-Item (Join-Path $PSScriptRoot "install-service.ps1"), (Join-Path $PSScriptRoot "install-db.ps1") $colTools
+New-Item -ItemType Directory -Force (Join-Path $colTools "ml") | Out-Null
+Copy-Item (Join-Path $PSScriptRoot "install-service.ps1"), (Join-Path $PSScriptRoot "install-db.ps1"), (Join-Path $PSScriptRoot "retrain.ps1") $colTools
+Copy-Item (Join-Path $PSScriptRoot "ml\retrain_anomaly.py") (Join-Path $colTools "ml")
 
 # ── zip (xcopy 배포용 보조) ──────────────────────────────────────────────────
 $appZip = Join-Path $dist "BODA.CMS-app-$Version-win-x64.zip"
