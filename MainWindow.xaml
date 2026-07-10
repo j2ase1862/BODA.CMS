@@ -242,8 +242,9 @@
                                 <views:SignalChartView />
                             </Border>
 
-                            <!-- 로봇 모드: 스켈레톤 + 축×신호 히트맵 + 축별 추세 -->
-                            <Border Grid.Row="2" Grid.ColumnSpan="4" Margin="0,12,0,0" Height="240">
+                            <!-- 로봇 모드: 3D 로봇 + 축×신호 히트맵 + 축별 추세 —
+                                 신호 수(히트맵 행) + 축 수(추세선)에 따라 내용이 커지므로 높이는 자동 -->
+                            <Border Grid.Row="2" Grid.ColumnSpan="4" Margin="0,12,0,0" MinHeight="240">
                                 <Border.Style>
                                     <Style TargetType="Border" BasedOn="{StaticResource InsetPanel}">
                                         <Setter Property="Visibility" Value="Collapsed" />

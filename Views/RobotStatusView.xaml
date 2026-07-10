@@ -10,12 +10,13 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <Grid Grid.Column="0">
+        <Grid Grid.Column="0" VerticalAlignment="Center">
             <Grid.RowDefinitions>
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
-            <helix:HelixViewport3D x:Name="Viewport"
+            <!-- 뷰포트는 고정 높이 — 패널 높이가 내용(히트맵·추세선)에 따라 자동일 때 기준점 -->
+            <helix:HelixViewport3D x:Name="Viewport" Height="235"
                                    ShowViewCube="False" ShowCoordinateSystem="False"
                                    ZoomExtentsWhenLoaded="False" IsHeadLightEnabled="True"
                                    RotateAroundMouseDownPoint="False"
