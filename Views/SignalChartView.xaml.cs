@@ -21,7 +21,9 @@ namespace BODA.CMS.Views
     {
         private const double WindowSeconds = 30; // 스크롤 창 길이
 
-        private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(100) };
+        // 5Hz — 전체 리렌더(축별 수천 점 × 6라인, Skia CPU 렌더)가 UI 스레드를 점유하므로
+        // 저사양 PC(2코어급)에서도 입력이 밀리지 않는 수준으로. 스트립 차트 체감 차이는 없다.
+        private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(200) };
         private readonly IPalette _palette = new ScottPlot.Palettes.Category10();
         private double[][] _buffers = Array.Empty<double[]>();
         private string? _currentSignal;

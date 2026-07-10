@@ -4,6 +4,19 @@
 
 ---
 
+## 2026-07-10 (15) — 저사양 PC(i3-6100/8GB) UI 멈춤 수정
+
+### 작업 내용
+- **증상(현장)**: 앱에서 모니터링 중지/연결 버튼이 먹통·데드락처럼 보임.
+- **원인 1 — DRFL 해제가 UI 스레드에서 동기 실행**: `DoosanDrflSource.DisconnectAsync` 가 네이티브 `CloseConnection`+`DestroyRobotControl` 을 호출 스레드에서 실행 — 네이티브가 내부 수신 스레드 정리를 기다리며 수 초 블로킹 가능(콜백에서 CBM/ML 추론이 도는 저사양에서 악화). Connect 는 이미 Task.Run 이었는데 Disconnect 만 동기였음. → `Task.Run` 오프로드 + `SemaphoreSlim` 으로 연결/해제 직렬화(버튼 연타·제조사 전환 중복 방지). ConnectAsync 초입의 정리용 Disconnect 도 동일 오프로드.
+- **원인 2 — ONNX 기본 세션의 CPU 점유**: 기본값은 코어 수만큼 intra-op 스레드 + 스핀 대기 — 2C4T 에서 유휴에도 CPU 점유. 이 모델(소형 iforest, 1×6 입력)은 단일 스레드로 충분 → `IntraOpNumThreads=1, InterOpNumThreads=1` (앱·Collector 공용 경로라 둘 다 혜택).
+- **원인 3 — UI 갱신 부하**: 차트 전체 리렌더(6축×수천 점, Skia CPU) 10Hz + 판독 표 10Hz → 각각 5Hz 로 (체감 차이 없음, UI 스레드 여유 확보).
+
+### 검증
+- 빌드 경고 0, 유닛테스트 54/54. DRFL 실기 블로킹 재현은 로봇 없이 불가 — 수정 패턴은 기존 ConnectAsync 의 Task.Run 경로와 동일 시맨틱. 현장 0.5.2 적용 후 중지/연결 반응성 확인 필요.
+
+---
+
 ## 2026-07-10 (14) — 대시보드 알림: DB 이력 조회 + 카드 클릭·심각도 필터
 
 ### 작업 내용

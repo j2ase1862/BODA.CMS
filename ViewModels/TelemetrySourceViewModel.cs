@@ -22,8 +22,9 @@ namespace BODA.CMS.ViewModels
     /// </summary>
     public sealed class TelemetrySourceViewModel : ViewModelBase
     {
-        // 드라이버 프레임은 최대 ~100Hz — UI는 이 간격으로만 갱신(throttle).
-        private static readonly TimeSpan UiThrottle = TimeSpan.FromMilliseconds(100);
+        // 드라이버 프레임은 최대 ~100Hz — 판독 표는 이 간격으로만 갱신(throttle).
+        // 5Hz: 눈으로 보는 수치 갱신에 충분하고 저사양 PC의 UI 스레드 부담이 절반.
+        private static readonly TimeSpan UiThrottle = TimeSpan.FromMilliseconds(200);
 
         private readonly IRobotTelemetrySource _source;
         private readonly Func<string> _getHost;

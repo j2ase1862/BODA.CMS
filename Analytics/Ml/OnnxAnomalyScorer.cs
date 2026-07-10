@@ -16,7 +16,11 @@ namespace BODA.CMS.Analytics.Ml
 
         public OnnxAnomalyScorer(string onnxPath)
         {
-            _session = new InferenceSession(onnxPath);
+            // 저사양(2~4코어) 보호: 기본 세션은 코어 수만큼 스레드를 만들고 스핀 대기해
+            // 유휴 중에도 CPU를 점유한다. 이 모델(소형 IsolationForest, 입력 1×6)은
+            // 단일 스레드로도 밀리초 미만이라 1개로 고정한다.
+            using var opts = new SessionOptions { IntraOpNumThreads = 1, InterOpNumThreads = 1 };
+            _session = new InferenceSession(onnxPath, opts);
             _inputName = _session.InputMetadata.Keys.First();
             // skl2onnx IsolationForest 출력: label(int64), scores(float) — float 쪽이 decision_function.
             _scoreOutput = _session.OutputMetadata
