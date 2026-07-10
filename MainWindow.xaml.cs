@@ -58,6 +58,10 @@ namespace BODA.CMS
             var handle = new WindowInteropHelper(this).Handle;
             int on = 1;
             _ = DwmSetWindowAttribute(handle, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, ref on, sizeof(int));
+
+            // 기본 크기(1220×1020)가 화면 작업 영역보다 크면 맞춰 줄인다 (노트북·저해상도 현장 PC).
+            if (Height > SystemParameters.WorkArea.Height) Height = SystemParameters.WorkArea.Height - 8;
+            if (Width > SystemParameters.WorkArea.Width) Width = SystemParameters.WorkArea.Width - 8;
         }
 
         [DllImport("dwmapi.dll", PreserveSig = true)]

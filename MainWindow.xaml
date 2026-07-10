@@ -3,8 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="clr-namespace:BODA.CMS.Views"
         Title="BODA.CMS — 협동로봇 상태 모니터"
-        Height="920" Width="1000"
-        MinHeight="700" MinWidth="760"
+        Height="1020" Width="1220"
+        MinHeight="720" MinWidth="900"
         WindowStartupLocation="CenterScreen"
         FontFamily="Segoe UI Variable Text, Segoe UI, Malgun Gothic" FontSize="13"
         Background="{StaticResource BgBrush}"
@@ -13,10 +13,8 @@
     <Grid Margin="20,16,20,20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- 헤더: 브랜드 워드마크 + 라이브 요약 -->
@@ -32,8 +30,13 @@
             </StackPanel>
         </Grid>
 
+        <!-- 본문(연결 설정·채널 카드·알림)은 스크롤 가능 — 작은 화면에서도 카드가 잘리지 않게 -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled" Padding="0,0,2,0">
+        <StackPanel>
+
         <!-- 연결 설정 카드 (제조사 선택 + 링크 프로브) -->
-        <Border Grid.Row="1" Style="{StaticResource Card}">
+        <Border Style="{StaticResource Card}">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -98,7 +101,7 @@
         </Border>
 
         <!-- 텔레메트리 소스 카드 목록 — 선택된 제조사의 채널만큼 카드가 렌더된다(XAML 수정 불필요) -->
-        <ItemsControl Grid.Row="2" ItemsSource="{Binding Sources}">
+        <ItemsControl ItemsSource="{Binding Sources}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
                     <Border Style="{StaticResource Card}" Margin="0,12,0,0">
@@ -260,7 +263,7 @@
         </ItemsControl>
 
         <!-- CBM 알림 리스트 (최신이 위) -->
-        <Border Grid.Row="3" Style="{StaticResource Card}" Padding="14,12" Margin="0,12,0,0">
+        <Border Style="{StaticResource Card}" Padding="14,12" Margin="0,12,0,0">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -285,8 +288,11 @@
             </Grid>
         </Border>
 
-        <!-- 로그 -->
-        <Border Grid.Row="4" Style="{StaticResource Card}" Padding="4" Margin="0,12,0,0">
+        </StackPanel>
+        </ScrollViewer>
+
+        <!-- 로그 — 항상 하단 고정 -->
+        <Border Grid.Row="2" Style="{StaticResource Card}" Padding="4" Margin="0,12,0,0" Height="150">
             <TextBox Text="{Binding LogText, Mode=OneWay}" IsReadOnly="True"
                      FontFamily="Consolas" FontSize="12" Foreground="{StaticResource MutedBrush}"
                      Background="Transparent" BorderThickness="0" Padding="10"
