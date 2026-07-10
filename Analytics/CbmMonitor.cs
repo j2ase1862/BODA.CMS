@@ -122,6 +122,20 @@ namespace BODA.CMS.Analytics
             }
         }
 
+        /// <summary>신호·축별 현재 z 상태 — 스켈레톤 뷰·히트맵 등 상세 시각화용 (Snapshot 의 세부 버전).</summary>
+        public IReadOnlyList<CbmAxisDetail> DetailSnapshot
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return _states.Select(kv => new CbmAxisDetail(
+                        kv.Key.Signal, kv.Key.Axis, kv.Value.LastZ, kv.Value.LastDriftZ,
+                        kv.Value.AlertActive, kv.Value.IsLearned(_options))).ToArray();
+                }
+            }
+        }
+
         private (List<CbmAlert> Alerts, List<CbmAggregate> Aggregates) EvaluateBucket(DateTime atUtc)
         {
             var alerts = new List<CbmAlert>();

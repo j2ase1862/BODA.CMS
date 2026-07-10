@@ -1,0 +1,50 @@
+<UserControl x:Class="BODA.CMS.Views.RobotStatusView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:helix="http://helix-toolkit.org/wpf">
+    <!-- 로봇 상태 뷰: 3D 로봇(관절 = CBM 상태 색, 자세 = 실시간 관절 각도) + 축×신호 z 히트맵 + 축별 추세.
+         갱신은 코드비하인드의 5Hz UI 타이머 — 판독 표·차트와 동일한 저사양 배려 주기. -->
+    <Grid Margin="10,8">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="300" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Grid Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <helix:HelixViewport3D x:Name="Viewport"
+                                   ShowViewCube="False" ShowCoordinateSystem="False"
+                                   ZoomExtentsWhenLoaded="False" IsHeadLightEnabled="True"
+                                   RotateAroundMouseDownPoint="False"
+                                   CameraRotationMode="Turntable"
+                                   Background="Transparent">
+                <helix:HelixViewport3D.Camera>
+                    <PerspectiveCamera Position="0.95,0.62,0.95"
+                                       LookDirection="-0.95,-0.30,-0.95"
+                                       UpDirection="0,1,0" FieldOfView="38" />
+                </helix:HelixViewport3D.Camera>
+                <helix:DefaultLights />
+            </helix:HelixViewport3D>
+            <TextBlock Grid.Row="1" Foreground="#5A6470" FontSize="11" Margin="4,2,0,0"
+                       Text="관절 색 = 기준선 이탈 상태 · 드래그 회전 / 휠 확대" />
+        </Grid>
+
+        <Grid Grid.Column="1" Margin="14,0,4,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <TextBlock Grid.Row="0" Text="기준선 이탈 (z)" Foreground="#8A93A0" FontSize="11.5"
+                       FontWeight="SemiBold" Margin="0,0,0,6" />
+            <Grid Grid.Row="1" x:Name="Heat" />
+            <TextBlock Grid.Row="2" x:Name="SparkHeader" Foreground="#8A93A0" FontSize="11.5"
+                       FontWeight="SemiBold" Margin="0,12,0,4" Text="축별 추세 (최근 30초)" />
+            <StackPanel Grid.Row="3" x:Name="Sparks" />
+        </Grid>
+    </Grid>
+</UserControl>

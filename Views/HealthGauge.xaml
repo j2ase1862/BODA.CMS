@@ -1,0 +1,13 @@
+<UserControl x:Class="BODA.CMS.Views.HealthGauge"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Width="38" Height="38">
+    <!-- CBM 건강도 원형 게이지 — 점수(0~100)만큼 호를 채운다. 색은 CBM 칩과 동일 브러시. -->
+    <Grid>
+        <Ellipse Stroke="#2A2F36" StrokeThickness="4" Margin="3" />
+        <Path x:Name="Arc" StrokeThickness="4"
+              StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+        <TextBlock x:Name="Label" HorizontalAlignment="Center" VerticalAlignment="Center"
+                   FontSize="10.5" FontWeight="SemiBold" Foreground="#D6E1EC" />
+    </Grid>
+</UserControl>

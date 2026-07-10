@@ -132,10 +132,17 @@
                             </StackPanel>
 
                             <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                <ToggleButton IsChecked="{Binding IsChartMode}"
-                                              Content="차트" Width="56" Margin="8,0,0,0" />
-                                <views:HelpIcon Margin="6,0,0,0" HelpTitle="표 ↔ 차트 전환"
-                                                HelpText="누르면 숫자 판독 표 대신 라이브 스트립 차트(최근 30초, 축별 J1~J6 라인)를 표시합니다. 차트 모드에서는 '차트 신호' 목록에서 그릴 신호 하나를 선택합니다. 다시 누르면 표로 돌아갑니다." />
+                                <views:HealthGauge Score="{Binding HealthScore}" Accent="{Binding CbmBrush}"
+                                                   Margin="4,0,8,0"
+                                                   ToolTip="CBM 건강도 (0~100) — 기준선 이탈이 클수록 낮아집니다" />
+                                <RadioButton Content="표"
+                                             IsChecked="{Binding View, Converter={StaticResource EnumToBool}, ConverterParameter=Table}" />
+                                <RadioButton Content="차트" Margin="4,0,0,0"
+                                             IsChecked="{Binding View, Converter={StaticResource EnumToBool}, ConverterParameter=Chart}" />
+                                <RadioButton Content="로봇" Margin="4,0,0,0"
+                                             IsChecked="{Binding View, Converter={StaticResource EnumToBool}, ConverterParameter=Robot}" />
+                                <views:HelpIcon Margin="6,0,0,0" HelpTitle="표시 모드 전환"
+                                                HelpText="표: 숫자 판독 표.&#x0a;차트: 라이브 스트립 차트(최근 30초, 축별 J1~J6 라인) — '차트 신호'에서 그릴 신호를 선택합니다.&#x0a;로봇: 로봇 그림 위에 관절별 상태를 표시합니다 — 관절 색이 기준선 이탈 정도(초록→주황→빨강)이고, 옆의 히트맵·추세선으로 어느 축·신호가 문제인지 한눈에 볼 수 있습니다." />
                             </StackPanel>
 
                             <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal"
@@ -157,9 +164,10 @@
                                           ItemsSource="{Binding Signals}">
                                 <ItemsControl.Style>
                                     <Style TargetType="ItemsControl">
+                                        <Setter Property="Visibility" Value="Collapsed" />
                                         <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsChartMode}" Value="True">
-                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            <DataTrigger Binding="{Binding View}" Value="Table">
+                                                <Setter Property="Visibility" Value="Visible" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -184,7 +192,7 @@
                                     <Style TargetType="StackPanel">
                                         <Setter Property="Visibility" Value="Collapsed" />
                                         <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsChartMode}" Value="True">
+                                            <DataTrigger Binding="{Binding View}" Value="Chart">
                                                 <Setter Property="Visibility" Value="Visible" />
                                             </DataTrigger>
                                         </Style.Triggers>
@@ -203,9 +211,10 @@
                             <Border Grid.Row="2" Grid.ColumnSpan="4" Margin="0,12,0,0" Padding="12,10">
                                 <Border.Style>
                                     <Style TargetType="Border" BasedOn="{StaticResource InsetPanel}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
                                         <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsChartMode}" Value="True">
-                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            <DataTrigger Binding="{Binding View}" Value="Table">
+                                                <Setter Property="Visibility" Value="Visible" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -221,13 +230,28 @@
                                     <Style TargetType="Border" BasedOn="{StaticResource InsetPanel}">
                                         <Setter Property="Visibility" Value="Collapsed" />
                                         <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsChartMode}" Value="True">
+                                            <DataTrigger Binding="{Binding View}" Value="Chart">
                                                 <Setter Property="Visibility" Value="Visible" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
                                 </Border.Style>
                                 <views:SignalChartView />
+                            </Border>
+
+                            <!-- 로봇 모드: 스켈레톤 + 축×신호 히트맵 + 축별 추세 -->
+                            <Border Grid.Row="2" Grid.ColumnSpan="4" Margin="0,12,0,0" Height="240">
+                                <Border.Style>
+                                    <Style TargetType="Border" BasedOn="{StaticResource InsetPanel}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding View}" Value="Robot">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <views:RobotStatusView />
                             </Border>
                         </Grid>
                     </Border>

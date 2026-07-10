@@ -16,6 +16,9 @@ using BODA.CMS.Mvvm;
 
 namespace BODA.CMS.ViewModels
 {
+    /// <summary>채널 카드의 본문 표시 모드.</summary>
+    public enum CardView { Table, Chart, Robot }
+
     /// <summary>
     /// 텔레메트리 소스 1개(= 채널 카드 1장)의 화면 상태.
     /// <see cref="IRobotTelemetrySource"/> 계약에만 의존한다 — 벤더가 늘어나도 이 클래스와 XAML은 불변.
@@ -47,7 +50,8 @@ namespace BODA.CMS.ViewModels
         private string _readout = "(모니터링 시작 전)";
         private string _port;
         private bool _isRunning;
-        private bool _isChartMode;
+        private CardView _view = CardView.Table;
+        private int _healthScore = 100;
         private SignalToggle? _selectedChartSignal;
         private string _cbmText = "CBM 대기";
         private Brush _cbmBrush = Theme.Muted;
@@ -140,8 +144,24 @@ namespace BODA.CMS.ViewModels
         public string MlText { get => _mlText; set => SetProperty(ref _mlText, value); }
         public Brush MlBrush { get => _mlBrush; set => SetProperty(ref _mlBrush, value); }
 
-        /// <summary>true면 판독 표 대신 라이브 차트를 표시.</summary>
-        public bool IsChartMode { get => _isChartMode; set => SetProperty(ref _isChartMode, value); }
+        /// <summary>본문 표시 모드 (표 / 차트 / 로봇) — 세그먼트 버튼 바인딩.</summary>
+        public CardView View
+        {
+            get => _view;
+            set { if (SetProperty(ref _view, value)) OnPropertyChanged(nameof(IsChartMode)); }
+        }
+
+        /// <summary>차트 드레인 여부 판단용 (SignalChartView) — View 파생.</summary>
+        public bool IsChartMode => _view == CardView.Chart;
+
+        /// <summary>CBM 건강도 0~100 — 카드 헤더 게이지 바인딩 (학습 중엔 100 유지·색으로 구분).</summary>
+        public int HealthScore { get => _healthScore; set => SetProperty(ref _healthScore, value); }
+
+        /// <summary>마지막 수신 프레임 (UI 스레드에서만 접근) — 로봇 스켈레톤 뷰가 5Hz 타이머로 읽는다.</summary>
+        public RobotTelemetryFrame? LastFrame => _lastFrame;
+
+        /// <summary>CBM 신호·축별 현재 z 상태 — 스켈레톤 관절 색·히트맵용 (호출 시점 스냅샷).</summary>
+        public IReadOnlyList<CbmAxisDetail> CbmDetails => _cbm.DetailSnapshot;
 
         /// <summary>차트에 그릴 신호(한 번에 1신호 = 축별 6라인). 첫 프레임 수신 시 첫 신호로 자동 설정.</summary>
         public SignalToggle? SelectedChartSignal { get => _selectedChartSignal; set => SetProperty(ref _selectedChartSignal, value); }
@@ -281,9 +301,11 @@ namespace BODA.CMS.ViewModels
             {
                 CbmText = $"CBM 학습 {s.LearningProgress:P0}";
                 CbmBrush = Theme.Muted;
+                HealthScore = 100;
                 return;
             }
 
+            HealthScore = s.HealthScore;
             CbmText = s.ActiveAlertCount > 0
                 ? $"건강도 {s.HealthScore} · 알림 {s.ActiveAlertCount} ({s.WorstDescription})"
                 : $"건강도 {s.HealthScore}";
