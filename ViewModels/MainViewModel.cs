@@ -27,7 +27,7 @@ namespace BODA.CMS.ViewModels
         private string _ipAddress = "192.168.137.100"; // 두산 기본 IP. 실제 컨트롤러 IP로 변경
         private string _port = "502";
         private string _statusMessage = "대기 중";
-        private Brush _statusBrush = Brushes.Gray;
+        private Brush _statusBrush = Theme.Muted;
         private bool _isConnected;
         private string _logText = string.Empty;
 
@@ -80,9 +80,9 @@ namespace BODA.CMS.ViewModels
             {
                 Brush brush = alert.Severity switch
                 {
-                    CbmSeverity.Alarm => Brushes.Firebrick,
-                    CbmSeverity.Warning => Brushes.DarkOrange,
-                    _ => Brushes.SeaGreen,
+                    CbmSeverity.Alarm => Theme.Bad,
+                    CbmSeverity.Warning => Theme.Warn,
+                    _ => Theme.Ok,
                 };
                 Alerts.Insert(0, new AlertItem($"[{DateTime.Now:HH:mm:ss}] [{cardTitle}] {alert.Message}", brush));
                 while (Alerts.Count > 100) Alerts.RemoveAt(Alerts.Count - 1);
@@ -146,31 +146,31 @@ namespace BODA.CMS.ViewModels
 
                 _probe.Disconnect();
                 IsConnected = false;
-                SetStatus("연결 해제됨", Brushes.Gray);
+                SetStatus("연결 해제됨", Theme.Muted);
                 AppendLog("연결을 해제했습니다.");
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(IpAddress))
             {
-                SetStatus("IP 주소를 입력하세요", Brushes.OrangeRed);
+                SetStatus("IP 주소를 입력하세요", Theme.Bad);
                 return;
             }
             if (!int.TryParse(Port, out int port) || port < 1 || port > 65535)
             {
-                SetStatus("포트 값이 올바르지 않습니다", Brushes.OrangeRed);
+                SetStatus("포트 값이 올바르지 않습니다", Theme.Bad);
                 return;
             }
 
             try
             {
-                SetStatus("연결 중...", Brushes.DarkOrange);
+                SetStatus("연결 중...", Theme.Warn);
                 AppendLog($"연결 시도: {IpAddress.Trim()}:{port}");
 
                 await _probe.ConnectAsync(IpAddress.Trim(), port);
 
                 IsConnected = true;
-                SetStatus("연결 성공", Brushes.SeaGreen);
+                SetStatus("연결 성공", Theme.Ok);
                 AppendLog("TCP 연결 성공.");
                 await SyncCollectorAsync(SelectedVendor); // IP가 확정된 시점 — 감시 서버에도 반영
 
@@ -189,7 +189,7 @@ namespace BODA.CMS.ViewModels
             catch (Exception ex)
             {
                 IsConnected = false;
-                SetStatus("연결 실패", Brushes.Firebrick);
+                SetStatus("연결 실패", Theme.Bad);
                 AppendLog("연결 실패: " + ex.GetBaseException().Message);
             }
         }

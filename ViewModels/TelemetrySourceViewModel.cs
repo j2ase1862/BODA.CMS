@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -43,16 +43,16 @@ namespace BODA.CMS.ViewModels
         private volatile MlAnomalyMonitor? _ml; // 백그라운드 로드 완료 후 세팅 (콜드 스타트 10초+ — UI 블록 금지)
 
         private string _status = "대기";
-        private Brush _statusBrush = Brushes.Gray;
+        private Brush _statusBrush = Theme.Muted;
         private string _readout = "(모니터링 시작 전)";
         private string _port;
         private bool _isRunning;
         private bool _isChartMode;
         private SignalToggle? _selectedChartSignal;
         private string _cbmText = "CBM 대기";
-        private Brush _cbmBrush = Brushes.Gray;
+        private Brush _cbmBrush = Theme.Muted;
         private string _mlText = "";
-        private Brush _mlBrush = Brushes.Gray;
+        private Brush _mlBrush = Theme.Muted;
 
         private readonly Func<ProductTier, bool>? _canUseTier;
 
@@ -89,8 +89,8 @@ namespace BODA.CMS.ViewModels
                 _ml = ml; // 배선 완료 후 공개 — 이후 프레임부터 ML 판정 시작
                 Application.Current?.Dispatcher.BeginInvoke(() =>
                 {
-                    if (ml is null) { MlText = "ML 모델 없음"; MlBrush = Brushes.Gray; }
-                    else if (MlText == "ML 로드 중…") { MlText = "ML 대기"; MlBrush = Brushes.Gray; }
+                    if (ml is null) { MlText = "ML 모델 없음"; MlBrush = Theme.Muted; }
+                    else if (MlText == "ML 로드 중…") { MlText = "ML 대기"; MlBrush = Theme.Muted; }
                 });
             });
         }
@@ -179,7 +179,7 @@ namespace BODA.CMS.ViewModels
             if (_canUseTier is not null && !_canUseTier(Tier))
             {
                 Status = "라이선스 등급 초과";
-                StatusBrush = Brushes.OrangeRed;
+                StatusBrush = Theme.Bad;
                 _log($"[{Title}] 라이선스 등급으로 {Tier} 채널을 사용할 수 없습니다 — 업그레이드 필요.");
                 return;
             }
@@ -188,13 +188,13 @@ namespace BODA.CMS.ViewModels
             if (string.IsNullOrWhiteSpace(host))
             {
                 Status = "IP 주소를 입력하세요";
-                StatusBrush = Brushes.OrangeRed;
+                StatusBrush = Theme.Bad;
                 return;
             }
             if (!int.TryParse(Port, out int port) || port < 1 || port > 65535)
             {
                 Status = "포트 값이 올바르지 않습니다";
-                StatusBrush = Brushes.OrangeRed;
+                StatusBrush = Theme.Bad;
                 return;
             }
 
@@ -206,13 +206,13 @@ namespace BODA.CMS.ViewModels
             catch (DllNotFoundException)
             {
                 Status = "네이티브 DLL 없음";
-                StatusBrush = Brushes.Firebrick;
+                StatusBrush = Theme.Bad;
                 _log($"[{Title}] 네이티브 DLL을 찾을 수 없습니다. exe 폴더의 DLL 번들을 확인하세요.");
             }
             catch (Exception ex)
             {
                 Status = "연결 실패";
-                StatusBrush = Brushes.Firebrick;
+                StatusBrush = Theme.Bad;
                 _log($"[{Title}] 연결 실패: " + ex.GetBaseException().Message);
             }
         }
@@ -223,10 +223,10 @@ namespace BODA.CMS.ViewModels
             {
                 (Status, StatusBrush, IsRunning) = state switch
                 {
-                    TelemetrySourceState.Connecting => ("연결 중...", (Brush)Brushes.DarkOrange, false),
-                    TelemetrySourceState.Connected => ("수신 중", Brushes.SeaGreen, true),
-                    TelemetrySourceState.Faulted => ("연결 끊김", Brushes.Firebrick, false),
-                    _ => ("대기", Brushes.Gray, false),
+                    TelemetrySourceState.Connecting => ("연결 중...", (Brush)Theme.Warn, false),
+                    TelemetrySourceState.Connected => ("수신 중", Theme.Ok, true),
+                    TelemetrySourceState.Faulted => ("연결 끊김", Theme.Bad, false),
+                    _ => ("대기", Theme.Muted, false),
                 };
             });
 
@@ -265,14 +265,14 @@ namespace BODA.CMS.ViewModels
             if (s.ScoredWindows == 0)
             {
                 MlText = "ML 대기";
-                MlBrush = Brushes.Gray;
+                MlBrush = Theme.Muted;
                 return;
             }
 
             MlText = s.ActiveAlertCount > 0
                 ? $"ML 이상 {s.ActiveAlertCount}건 ({s.WorstDescription})"
                 : "ML 정상";
-            MlBrush = s.ActiveAlertCount > 0 ? Brushes.Firebrick : Brushes.SeaGreen;
+            MlBrush = s.ActiveAlertCount > 0 ? Theme.Bad : Theme.Ok;
         }
 
         private void UpdateCbmChip(CbmSnapshot s)
@@ -280,16 +280,16 @@ namespace BODA.CMS.ViewModels
             if (s.Phase == CbmPhase.Learning)
             {
                 CbmText = $"CBM 학습 {s.LearningProgress:P0}";
-                CbmBrush = Brushes.Gray;
+                CbmBrush = Theme.Muted;
                 return;
             }
 
             CbmText = s.ActiveAlertCount > 0
                 ? $"건강도 {s.HealthScore} · 알림 {s.ActiveAlertCount} ({s.WorstDescription})"
                 : $"건강도 {s.HealthScore}";
-            CbmBrush = s.HealthScore >= 80 ? Brushes.SeaGreen
-                     : s.HealthScore >= 50 ? Brushes.DarkOrange
-                     : Brushes.Firebrick;
+            CbmBrush = s.HealthScore >= 80 ? Theme.Ok
+                     : s.HealthScore >= 50 ? Theme.Warn
+                     : Theme.Bad;
         }
 
         /// <summary>프레임에 존재하는 신호마다 토글을 1회 생성(라벨 = 판독 행 키).</summary>

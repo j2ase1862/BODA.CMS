@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-07-10 (16) — 앱 UI 다크 테마 리디자인
+
+### 작업 내용
+- **디자인 시스템 신설**: `Themes/Theme.xaml` — 웹 대시보드(wwwroot)·앱 아이콘과 동일 팔레트(배경 #14171B, 카드 #1B1F24, 텍스트 #D6E1EC, 액센트 청록 #33C9BA). Button(액센트)·ToggleButton(고스트→체크 시 액센트)·TextBox·ComboBox(전체 다크 템플릿)·CheckBox(신호 선택을 필 칩으로)·슬림 스크롤바 implicit 스타일 + Card/InsetPanel 공용 스타일.
+- **MainWindow**: 브랜드 헤더(워드마크+부제) 추가, 카드 DropShadowEffect 제거(플랫 + 헤어라인 — 저사양 렌더 부담도 감소), 인라인 색상 전부 테마 리소스로.
+- **상태 색 일원화**: `Mvvm/Theme.cs`(Ok/Warn/Bad/Muted, Freeze) — ViewModel 의 Brushes.SeaGreen/DarkOrange/Firebrick/Gray/OrangeRed 를 팔레트로 치환 (다크 배경 가독 색).
+- **다크 타이틀바**: `DwmSetWindowAttribute(DWMWA_USE_IMMERSIVE_DARK_MODE)` — Win10 1809+/Win11, 미지원 OS 무시.
+- HelpIcon 다크 톤 + 액센트 호버.
+
+### 검증
+- 시뮬레이터 2채널 실행 상태로 표/차트 모드 스크린샷 확인(UIA 자동화) — 칩·콤보 팝업·차트·타이틀바 모두 다크 일관. 유닛테스트 54/54, 빌드 경고 0.
+
+---
+
 ## 2026-07-10 (15) — 저사양 PC(i3-6100/8GB) UI 멈춤 수정
 
 ### 작업 내용

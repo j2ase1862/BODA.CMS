@@ -1,6 +1,8 @@
 ﻿using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Interop;
 using BODA.CMS.Core.Licensing;
 using BODA.CMS.Core.Telemetry;
 using BODA.CMS.Drivers.Doosan;
@@ -47,5 +49,18 @@ namespace BODA.CMS
             // 제조사/IP 선택을 감시 서버(웹 대시보드)에도 자동 반영 — 서버가 없으면 로그만 남기고 무시.
             DataContext = new MainViewModel(modbus, vendors, license, new Services.CollectorSync());
         }
+
+        // 다크 테마(Themes/Theme.xaml)에 맞춰 OS 타이틀바도 어둡게 — Win10 1809+/Win11.
+        // 미지원 OS 에서는 조용히 무시된다(밝은 타이틀바로 동작).
+        protected override void OnSourceInitialized(EventArgs e)
+        {
+            base.OnSourceInitialized(e);
+            var handle = new WindowInteropHelper(this).Handle;
+            int on = 1;
+            _ = DwmSetWindowAttribute(handle, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, ref on, sizeof(int));
+        }
+
+        [DllImport("dwmapi.dll", PreserveSig = true)]
+        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
     }
 }
