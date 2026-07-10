@@ -140,6 +140,43 @@ namespace BODA.CMS.Collector.Storage
             await cmd.ExecuteNonQueryAsync(ct);
         }
 
+        public async Task<IReadOnlyList<AlertRecord>?> QueryAlertsAsync(AlertQuery q, CancellationToken ct)
+        {
+            var cond = new List<string> { "TRUE" };
+            await using var cmd = new NpgsqlCommand();
+            if (q.Robot is not null) { cond.Add("robot_id = @r"); cmd.Parameters.AddWithValue("r", q.Robot); }
+            if (q.Channel is not null) { cond.Add("channel = @c"); cmd.Parameters.AddWithValue("c", q.Channel); }
+            if (q.Severities is { Count: > 0 })
+            {
+                cond.Add("lower(severity) = ANY(@sev)");
+                cmd.Parameters.AddWithValue("sev", q.Severities.Select(s => s.ToLowerInvariant()).ToArray());
+            }
+            if (q.BeforeUtc is DateTime before)
+            {
+                cond.Add("time < @b");
+                cmd.Parameters.AddWithValue("b", DateTime.SpecifyKind(before.ToUniversalTime(), DateTimeKind.Utc));
+            }
+            cmd.Parameters.AddWithValue("take", q.Take);
+            cmd.CommandText = $"""
+                SELECT time, robot_id, vendor, channel, signal, axis, severity, kind, message
+                FROM telemetry_alerts WHERE {string.Join(" AND ", cond)}
+                ORDER BY time DESC LIMIT @take
+                """;
+
+            await using var conn = await _dataSource.OpenConnectionAsync(ct);
+            cmd.Connection = conn;
+            var result = new List<AlertRecord>(q.Take);
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                result.Add(new AlertRecord(
+                    reader.GetDateTime(0), reader.GetString(1), reader.GetString(2), reader.GetString(3),
+                    reader.GetString(4), reader.GetInt32(5), reader.GetString(6), reader.GetString(7),
+                    reader.GetString(8)));
+            }
+            return result;
+        }
+
         public async Task WriteBatchAsync(IReadOnlyList<TelemetryRecord> batch, CancellationToken ct)
         {
             await using var conn = await _dataSource.OpenConnectionAsync(ct);

@@ -13,5 +13,11 @@ namespace BODA.CMS.Collector.Storage
 
         /// <summary>CBM/ML/비전 알림 1건 저장 (저빈도 — 단건 insert). 실패 시 예외.</summary>
         Task WriteAlertAsync(AlertRecord alert, CancellationToken ct);
+
+        /// <summary>
+        /// 알림 이력 조회(최신순). 이력을 갖지 않는 구현(dry-run)은 null 을 반환하고,
+        /// 호출자는 DashboardState 메모리 링으로 폴백한다. DB 미기동 등 실패는 예외.
+        /// </summary>
+        Task<IReadOnlyList<AlertRecord>?> QueryAlertsAsync(AlertQuery query, CancellationToken ct);
     }
 }

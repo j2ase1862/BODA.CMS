@@ -39,5 +39,9 @@ namespace BODA.CMS.Collector.Storage
                 alert.RobotId, alert.Channel, alert.Severity, alert.Message);
             return Task.CompletedTask;
         }
+
+        /// <summary>이력 없음 — 호출자가 메모리 링으로 폴백.</summary>
+        public Task<IReadOnlyList<AlertRecord>?> QueryAlertsAsync(AlertQuery query, CancellationToken ct)
+            => Task.FromResult<IReadOnlyList<AlertRecord>?>(null);
     }
 }

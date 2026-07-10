@@ -15,6 +15,13 @@ namespace BODA.CMS.Collector.Dashboard
     }
 
     /// <summary>
+    /// 알림 이력 조회 조건 — null 필드는 필터 미적용, Severities 는 대소문자 무시.
+    /// BeforeUtc 는 "이전 알림 더 보기" 페이지 커서(그 시각 미만만).
+    /// </summary>
+    public sealed record AlertQuery(
+        string? Robot, string? Channel, IReadOnlyList<string>? Severities, DateTime? BeforeUtc, int Take);
+
+    /// <summary>
     /// 웹 대시보드가 읽는 수집기 현재 상태 — 채널별 연결/수집률/CBM/ML 스냅샷 + 최근 알림 링.
     /// 쓰기는 수집 펌프(드라이버 스레드), 읽기는 HTTP 핸들러 — 내부 lock으로 직렬화.
     /// </summary>
@@ -95,9 +102,17 @@ namespace BODA.CMS.Collector.Dashboard
             }
         }
 
-        public IReadOnlyList<AlertRecord> GetAlerts(int take)
+        /// <summary>메모리 링에서 알림 조회 — DB 미사용/미기동 시의 폴백 (링 용량 200이 상한).</summary>
+        public IReadOnlyList<AlertRecord> GetAlerts(AlertQuery q)
         {
-            lock (_gate) return _alerts.Take(take).ToArray();
+            lock (_gate) return _alerts
+                .Where(a => (q.Robot is null || a.RobotId == q.Robot)
+                         && (q.Channel is null || a.Channel == q.Channel)
+                         && (q.Severities is not { Count: > 0 }
+                             || q.Severities.Contains(a.Severity, StringComparer.OrdinalIgnoreCase))
+                         && (q.BeforeUtc is not DateTime b || a.AtUtc < b))
+                .Take(q.Take)
+                .ToArray();
         }
 
         /// <summary>/api/status 응답 본문 (익명 DTO — System.Text.Json camelCase 직렬화).</summary>

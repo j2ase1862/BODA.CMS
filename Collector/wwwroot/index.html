@@ -11,7 +11,10 @@
   h1 { font-size: 20px; margin: 0 0 4px; }
   #license { color: #8a93a0; font-size: 13px; margin-bottom: 20px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
-  .card { background: #1b1f24; border: 1px solid #2a2f36; border-radius: 10px; padding: 16px; }
+  .card { background: #1b1f24; border: 1px solid #2a2f36; border-radius: 10px; padding: 16px;
+          cursor: pointer; }
+  .card:hover { border-color: #3a424d; }
+  .card.selected { border-color: #4fc08d; }
   .card h2 { font-size: 15px; margin: 0 0 2px; }
   .sub { color: #8a93a0; font-size: 12px; margin-bottom: 10px; }
   .row { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
@@ -23,21 +26,107 @@
   .bar { height: 6px; background: #2a2f36; border-radius: 3px; overflow: hidden; margin-top: 8px; }
   .bar > div { height: 100%; transition: width .5s; }
   #alerts { margin-top: 24px; }
-  #alerts h2 { font-size: 15px; }
+  #alerts h2 { font-size: 15px; margin-bottom: 6px; }
+  #alertMeta { color: #8a93a0; font-size: 12px; font-weight: normal; margin-left: 8px; }
+  .chip { display: inline-block; padding: 3px 11px; margin: 0 6px 6px 0; border: 1px solid #2a2f36;
+          border-radius: 12px; font-size: 12px; color: #8a93a0; cursor: pointer; user-select: none; }
+  .chip:hover { border-color: #3a424d; }
+  .chip.on { color: #d6e1ec; border-color: #4fc08d; }
   .alert { font-family: Consolas, monospace; font-size: 12.5px; padding: 2px 0; }
   .Alarm { color: #e06c6c; } .Warning { color: #e0a836; } .Info { color: #4fc08d; }
   #empty { color: #5a6470; }
+  #moreBtn { margin-top: 8px; background: none; }
 </style>
 </head>
 <body>
 <h1>BODA.CMS — 협동로봇 상태 대시보드</h1>
 <div id="license">연결 중…</div>
 <div class="grid" id="cards"></div>
-<div id="alerts"><h2>알림</h2><div id="alertList"><span id="empty">알림 없음</span></div></div>
+<div id="alerts">
+  <h2>알림<span id="alertMeta"></span></h2>
+  <div id="chips"></div>
+  <div id="alertList"><span id="empty">알림 없음</span></div>
+  <button id="moreBtn" class="chip">이전 알림 더 보기</button>
+</div>
 
 <script>
 function healthClass(score) { return score >= 80 ? 'health-good' : score >= 50 ? 'health-warn' : 'health-bad'; }
 function healthColor(score) { return score >= 80 ? '#4fc08d' : score >= 50 ? '#e0a836' : '#e06c6c'; }
+
+// ── 알림 필터 상태: 카드 클릭(로봇/채널)과 칩(심각도)이 같은 상태를 공유한다 ──
+const filter = { robot: null, channel: null, severity: null };
+let live = true;   // false = "더 보기"로 과거 조회 중 — 목록 자동 갱신 일시정지
+let shown = [];    // 현재 목록 (live 첫 페이지 + 더 보기로 이어붙인 과거 페이지)
+const SEVERITIES = [[null, '전체'], ['warning,alarm', '경고 이상'], ['alarm', '알람만']];
+
+function alertsUrl(before) {
+  const p = new URLSearchParams({ take: 40 });
+  if (filter.robot) { p.set('robot', filter.robot); p.set('channel', filter.channel); }
+  if (filter.severity) p.set('severity', filter.severity);
+  if (before) p.set('before', before);
+  return '/api/alerts?' + p;
+}
+
+function renderChips() {
+  let html = SEVERITIES.map(([v, label]) =>
+    `<span class="chip ${filter.severity === v ? 'on' : ''}" data-sev="${v ?? ''}">${label}</span>`).join('');
+  if (filter.robot)
+    html += `<span class="chip on" data-clear-card>${filter.robot}/${filter.channel} ✕</span>`;
+  if (!live)
+    html += `<span class="chip on" data-live>▶ 최신으로</span>`;
+  document.getElementById('chips').innerHTML = html;
+}
+
+function renderAlerts() {
+  document.getElementById('alertList').innerHTML = shown.length
+    ? shown.map(a => `<div class="alert ${a.severity}">[${new Date(a.atUtc).toLocaleString()}] ` +
+        `[${a.robotId}/${a.channel}] ${a.message}</div>`).join('')
+    : '<span id="empty">알림 없음</span>';
+  document.getElementById('alertMeta').textContent =
+    `${shown.length}건 표시` + (live ? '' : ' · 과거 조회 중 (갱신 일시정지)');
+}
+
+async function refreshAlerts() {
+  shown = await (await fetch(alertsUrl())).json();
+  renderAlerts();
+}
+
+// 필터가 바뀌면 과거 페이지를 버리고 실시간 첫 페이지부터 다시.
+function onFilterChanged() {
+  live = true;
+  document.getElementById('moreBtn').textContent = '이전 알림 더 보기';
+  renderChips();
+  refreshAlerts();
+}
+
+// 카드 클릭 → 해당 로봇/채널 알림만 (다시 클릭하면 해제)
+document.getElementById('cards').addEventListener('click', e => {
+  const card = e.target.closest('.card');
+  if (!card) return;
+  const same = filter.robot === card.dataset.robot && filter.channel === card.dataset.channel;
+  filter.robot = same ? null : card.dataset.robot;
+  filter.channel = same ? null : card.dataset.channel;
+  onFilterChanged();
+  refresh();
+});
+
+document.getElementById('chips').addEventListener('click', e => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  if (chip.dataset.sev !== undefined) { filter.severity = chip.dataset.sev || null; onFilterChanged(); }
+  else if ('clearCard' in chip.dataset) { filter.robot = filter.channel = null; onFilterChanged(); refresh(); }
+  else if ('live' in chip.dataset) onFilterChanged();
+});
+
+document.getElementById('moreBtn').addEventListener('click', async () => {
+  live = false;   // 과거를 읽는 동안 목록이 위에서 밀리지 않게 일시정지
+  const before = shown.length ? shown[shown.length - 1].atUtc : null;
+  const page = await (await fetch(alertsUrl(before))).json();
+  if (!page.length) document.getElementById('moreBtn').textContent = '더 이상 없음';
+  shown = shown.concat(page);
+  renderChips();
+  renderAlerts();
+});
 
 async function refresh() {
   try {
@@ -59,7 +148,9 @@ async function refresh() {
                                  : '<span class="health-good">정상</span>')
             : '대기')
         : '모델 없음';
-      return `<div class="card">
+      const selected = filter.robot === c.robotId && filter.channel === c.channel;
+      return `<div class="card${selected ? ' selected' : ''}" data-robot="${c.robotId}" data-channel="${c.channel}"
+                   title="클릭하면 이 채널의 알림만 표시">
         <h2><span class="dot ${c.state}"></span>${c.robotId} — ${c.displayName}</h2>
         <div class="sub">${c.vendor}/${c.channel} · ${c.tier} · ${c.state}</div>
         <div class="row"><span class="k">수집률</span><span>${c.rateHz} Hz (누적 ${c.framesTotal.toLocaleString()})</span></div>
@@ -69,15 +160,12 @@ async function refresh() {
       </div>`;
     }).join('');
 
-    const alerts = await (await fetch('/api/alerts?take=40')).json();
-    document.getElementById('alertList').innerHTML = alerts.length
-      ? alerts.map(a => `<div class="alert ${a.severity}">[${new Date(a.atUtc).toLocaleTimeString()}] ` +
-          `[${a.robotId}/${a.channel}] ${a.message}</div>`).join('')
-      : '<span id="empty">알림 없음</span>';
+    if (live) await refreshAlerts();
   } catch (e) {
     document.getElementById('license').textContent = '수집기 연결 실패: ' + e;
   }
 }
+renderChips();
 refresh();
 setInterval(refresh, 1000);
 </script>

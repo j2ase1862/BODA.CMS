@@ -73,8 +73,29 @@ app.MapGet("/api/status", (DashboardState dashboard, LicenseStatus license) => R
     channels = dashboard.GetStatus(),
 }));
 
-app.MapGet("/api/alerts", (DashboardState dashboard, int? take) =>
-    Results.Json(dashboard.GetAlerts(Math.Clamp(take ?? 50, 1, 200))));
+// 알림 이력: DB(telemetry_alerts)가 있으면 전체 이력에서 필터·페이지 조회,
+// 없거나(dry-run) 미기동이면 메모리 링(최근 200)으로 폴백. severity 는 쉼표 목록.
+app.MapGet("/api/alerts", async (DashboardState dashboard, IFrameStore store, ILogger<Program> logger,
+    string? robot, string? channel, string? severity, DateTime? before, int? take, CancellationToken ct) =>
+{
+    var query = new AlertQuery(
+        string.IsNullOrWhiteSpace(robot) ? null : robot,
+        string.IsNullOrWhiteSpace(channel) ? null : channel,
+        string.IsNullOrWhiteSpace(severity) ? null
+            : severity.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+        before?.ToUniversalTime(),
+        Math.Clamp(take ?? 50, 1, 200));
+    try
+    {
+        if (await store.QueryAlertsAsync(query, ct) is { } history)
+            return Results.Json(history);
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "알림 이력 DB 조회 실패 — 메모리 링(최근 200)으로 폴백.");
+    }
+    return Results.Json(dashboard.GetAlerts(query));
+});
 
 // ── 로봇 구성 조회/교체 — WPF 앱의 제조사 전환이 대시보드에도 반영되도록 (내부망 전용 API) ──
 app.MapGet("/api/robots", (CollectorService collector) => Results.Json(collector.CurrentRobots));

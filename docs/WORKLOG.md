@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-07-10 (14) — 대시보드 알림: DB 이력 조회 + 카드 클릭·심각도 필터
+
+### 작업 내용
+- **문제**: 웹 알림이 메모리 링 200건·화면 40건 상한에서 멈춰 보임 — DB(`telemetry_alerts`)에는 전체가 있는데 웹이 링 꼬리만 노출.
+- **저장소**: `IFrameStore.QueryAlertsAsync(AlertQuery)` 추가 — Timescale 구현은 robot/channel/severity(쉼표 목록·대소문자 무시)/before(페이지 커서) 동적 WHERE + `ORDER BY time DESC LIMIT`. dry-run(LogFrameStore)은 null 반환.
+- **API**: `/api/alerts?robot=&channel=&severity=&before=&take=` — DB 조회 우선, 실패(미기동)·dry-run 이면 `DashboardState.GetAlerts(AlertQuery)` 메모리 링 폴백(동일 필터).
+- **UI(혼용 방식)**: 카드 클릭 → 해당 로봇·채널 알림만(재클릭 해제, 선택 카드 테두리 강조) + 심각도 칩(전체/경고 이상/알람만) — 두 입력이 같은 필터 상태 공유. "이전 알림 더 보기" = before 커서 페이지 추가 로드(보는 동안 자동 갱신 일시정지, "▶ 최신으로"로 복귀).
+
+### 검증
+- 콘솔 Collector 실기동: 무필터 162건(=DB count) / alarm 30 / warning,alarm 123 / robot+channel 141 — 모두 psql 집계와 일치. before 커서 2페이지 중복 0·시각 침범 0. 헤드리스 Edge 스크린샷으로 카드·칩·알림 렌더 확인. 빌드 경고 0.
+- 미검증: 카드 클릭·더 보기 등 마우스 상호작용 실연(수동 확인 권장), DB 폴백 경로 실기동(코드 경로 단순).
+
+---
+
 ## 2026-07-09 (13) — 앱 제조사 선택 → 웹 대시보드 자동 반영
 
 ### 작업 내용
