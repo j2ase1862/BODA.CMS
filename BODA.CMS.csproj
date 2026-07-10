@@ -8,6 +8,8 @@
     <UseWPF>true</UseWPF>
     <RootNamespace>BODA.CMS</RootNamespace>
     <AssemblyName>BODA.CMS</AssemblyName>
+    <!-- 앱 아이콘 (tools\make-icon.ps1 이 생성) — exe 임베드로 바로가기·작업표시줄·창 제목에 모두 반영 -->
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <!-- DRFLWin64.dll(네이티브 x64)을 P/Invoke 하므로 x64 고정. AnyCPU 로 두면 -->
     <!-- 32비트 프로세스로 떠 BadImageFormatException 이 난다. -->
     <Platforms>x64</Platforms>

@@ -11,6 +11,7 @@
   <Bundle Name="BODA.CMS 감시 서버 통합 설치 (DB 포함)"
           Manufacturer="BODA"
           Version="$(var.Version)"
+          IconSourceFile="$(var.IconFile)"
           UpgradeCode="44D1A583-9724-4536-9FB1-89713431A4F1">
 
     <BootstrapperApplication>

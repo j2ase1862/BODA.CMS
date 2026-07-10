@@ -15,6 +15,10 @@
     <MajorUpgrade DowngradeErrorMessage="더 높은 버전이 이미 설치되어 있습니다. 먼저 제거한 뒤 설치하세요." />
     <MediaTemplate EmbedCab="yes" />
 
+    <!-- 프로그램 추가/제거 목록 아이콘 (바로가기는 exe 임베드 아이콘을 그대로 씀) -->
+    <Icon Id="AppIcon.ico" SourceFile="$(var.IconFile)" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
+
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="BODA.CMS" />
     </StandardDirectory>

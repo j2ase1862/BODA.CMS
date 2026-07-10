@@ -71,21 +71,23 @@ $colMsi = Join-Path $dist "BODA.CMS-collector-$Version-x64.msi"
 $appPayload = Join-Path $stage "app"
 $colPayload = Join-Path $stage "collector"
 
+$iconFile = Join-Path $root "Assets\app.ico"   # tools\make-icon.ps1 이 생성 (ARP·번들 아이콘)
+
 Write-Host "== MSI 빌드 (모니터 앱) =="
 wix build (Join-Path $root "installer\App.wxs") -arch x64 `
-    -d "Version=$Version" -d "PayloadDir=$appPayload" -o $appMsi
+    -d "Version=$Version" -d "PayloadDir=$appPayload" -d "IconFile=$iconFile" -o $appMsi
 if ($LASTEXITCODE -ne 0) { throw "앱 MSI 빌드 실패" }
 
 Write-Host "== MSI 빌드 (감시 서버) =="
 wix build (Join-Path $root "installer\Collector.wxs") -arch x64 -ext WixToolset.Util.wixext `
-    -d "Version=$Version" -d "PayloadDir=$colPayload" -d "MainDir=$colMain" -o $colMsi
+    -d "Version=$Version" -d "PayloadDir=$colPayload" -d "MainDir=$colMain" -d "IconFile=$iconFile" -o $colMsi
 if ($LASTEXITCODE -ne 0) { throw "Collector MSI 빌드 실패" }
 
 Write-Host "== 통합 설치 번들 빌드 (PostgreSQL 동봉) =="
 $setupExe = Join-Path $dist "BODA.CMS-collector-setup-$Version-x64.exe"
 wix build (Join-Path $root "installer\Bundle.wxs") `
     -ext WixToolset.BootstrapperApplications.wixext -ext WixToolset.Util.wixext `
-    -d "Version=$Version" -d "CollectorMsi=$colMsi" -d "PgInstaller=$pgInstaller" -o $setupExe
+    -d "Version=$Version" -d "CollectorMsi=$colMsi" -d "PgInstaller=$pgInstaller" -d "IconFile=$iconFile" -o $setupExe
 if ($LASTEXITCODE -ne 0) { throw "통합 설치 번들 빌드 실패" }
 
 Remove-Item -Recurse -Force $stage
