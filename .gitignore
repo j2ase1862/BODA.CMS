@@ -17,3 +17,4 @@ dist/
 
 # dotnet run/VS가 자동 재생성 — 포트를 가로채 appsettings Urls를 무시하게 만든다 (WORKLOG 2026-07-08 (8))
 **/Properties/launchSettings.json
+__pycache__/
