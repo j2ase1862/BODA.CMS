@@ -1,10 +1,46 @@
+using BODA.CMS.Analytics;
+
 namespace BODA.CMS.Collector
 {
     /// <summary>appsettings.json "Collector" 섹션 — 다중 로봇 수집 구성 (ROADMAP §4 P1).</summary>
     public sealed class CollectorOptions
     {
         public StorageOptions Storage { get; set; } = new();
+        public CbmSettings Cbm { get; set; } = new();
         public List<RobotOptions> Robots { get; set; } = new();
+    }
+
+    /// <summary>
+    /// "Collector:Cbm" — 기준선 학습창을 현장 작업 특성에 맞게 조정.
+    ///
+    /// 기준선 학습창이 로봇 작업 1사이클보다 짧으면, 사이클 중 기준선에 안 담긴 구간이
+    /// 돌아올 때마다 z≈2 수준으로 출렁여 건강도가 70~80을 오간다 — 학습창을 사이클의
+    /// 몇 배로 잡아 사이클 전체 변동이 기준선 σ에 반영되게 한다.
+    /// ⚠ 값을 바꾸면 ML 모델도 같은 학습창으로 재학습해야 정합이 유지된다
+    ///   (앱 'AI 재학습'의 학습창 입력 또는 retrain.ps1 -LearningSeconds).
+    /// </summary>
+    public sealed class CbmSettings
+    {
+        /// <summary>로봇 작업 1사이클 길이(초). 설정하면 학습창 = CycleSeconds × CyclesToLearn.
+        /// 0(기본)이면 미사용 — LearningSeconds 또는 엔진 기본(60초)을 쓴다.</summary>
+        public double CycleSeconds { get; set; }
+
+        /// <summary>기준선에 담을 사이클 수 (기본 3) — 부하가 다른 구간이 σ에 고루 반영되게.</summary>
+        public int CyclesToLearn { get; set; } = 3;
+
+        /// <summary>학습창(초) 직접 지정 — 설정하면 CycleSeconds 계산보다 우선.</summary>
+        public int? LearningSeconds { get; set; }
+
+        /// <summary>유효 학습창(초): 직접 지정 > 사이클×횟수 > 기본 60. 하한 30초 (집계 1초 = 1건).</summary>
+        public int EffectiveLearningSeconds()
+        {
+            int seconds = LearningSeconds
+                ?? (CycleSeconds > 0 ? (int)Math.Ceiling(CycleSeconds * Math.Max(1, CyclesToLearn)) : 60);
+            return Math.Max(30, seconds);
+        }
+
+        public CbmOptions ToCbmOptions() =>
+            CbmOptions.Default with { LearningAggregates = EffectiveLearningSeconds() };
     }
 
     /// <summary>수집 대상 로봇 1대 — 벤더 카탈로그의 드라이버 세트가 이 엔드포인트로 붙는다.</summary>

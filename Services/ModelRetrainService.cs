@@ -27,7 +27,8 @@ namespace BODA.CMS.Services
         DateTimeOffset? Until,
         string? RobotId,
         string? Channel,
-        int MinWindows);
+        int MinWindows,
+        int LearningSeconds = 60); // 기준선 학습창(초) — Collector:Cbm 설정과 동일해야 정합
 
     /// <summary>
     /// 앱 내 이상탐지 모델 재학습 파이프라인 (P3 후속) — tools\retrain.ps1 의 UI 버전.
@@ -103,6 +104,7 @@ namespace BODA.CMS.Services
             if (!string.IsNullOrWhiteSpace(req.RobotId)) args.Append(" --robot \"").Append(req.RobotId.Trim()).Append('"');
             if (!string.IsNullOrWhiteSpace(req.Channel)) args.Append(" --channel \"").Append(req.Channel.Trim()).Append('"');
             args.Append(" --min-windows ").Append(req.MinWindows);
+            args.Append(" --learning-aggregates ").Append(req.LearningSeconds);
             args.Append(" --out \"").Append(StageDirectory).Append('"');
 
             log($"재학습 실행 — 구간 {req.Since.LocalDateTime:yyyy-MM-dd HH:mm} ~ {(req.Until?.LocalDateTime.ToString("yyyy-MM-dd HH:mm") ?? "현재")}");

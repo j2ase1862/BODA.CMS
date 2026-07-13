@@ -29,6 +29,7 @@ namespace BODA.CMS.ViewModels
         private string _robotId = "";
         private string _channel = "";
         private string _minWindowsText = "5000";
+        private string _learningSecondsText = "60";
         private string _statusMessage = "① 데이터 조회 → ② 구간 확인 → ③ 재학습 시작";
         private Brush _statusBrush = Theme.Muted;
         private string _logText = "";
@@ -67,6 +68,9 @@ namespace BODA.CMS.ViewModels
         public string RobotId { get => _robotId; set => SetProperty(ref _robotId, value); }
         public string Channel { get => _channel; set => SetProperty(ref _channel, value); }
         public string MinWindowsText { get => _minWindowsText; set => SetProperty(ref _minWindowsText, value); }
+
+        /// <summary>기준선 학습창(초) — Collector 의 Collector:Cbm 설정과 같은 값이어야 런타임과 정합.</summary>
+        public string LearningSecondsText { get => _learningSecondsText; set => SetProperty(ref _learningSecondsText, value); }
 
         public string StatusMessage { get => _statusMessage; set => SetProperty(ref _statusMessage, value); }
         public Brush StatusBrush { get => _statusBrush; set => SetProperty(ref _statusBrush, value); }
@@ -201,10 +205,16 @@ namespace BODA.CMS.ViewModels
                 return false;
             }
 
+            if (!int.TryParse(LearningSecondsText, out int learningSeconds) || learningSeconds < 30)
+            {
+                error = "학습창은 30초 이상의 정수여야 합니다 (기본 60, Collector 설정과 동일하게)";
+                return false;
+            }
+
             req = new RetrainRequest(ConnectionString, new DateTimeOffset(since), until,
                 string.IsNullOrWhiteSpace(RobotId) ? null : RobotId,
                 string.IsNullOrWhiteSpace(Channel) ? null : Channel,
-                minWindows);
+                minWindows, learningSeconds);
             error = null;
             return true;
         }

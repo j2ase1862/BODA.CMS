@@ -16,6 +16,7 @@ param(
     [string]$Channel,                   # 특정 채널만 (drfl/modbus)
     [string]$Dsn = "host=localhost port=5432 dbname=boda_cms user=postgres password=postgres",
     [int]$MinWindows = 5000,            # 실 데이터 윈도 최소 개수 (미달 시 중단)
+    [int]$LearningSeconds = 0,          # 기준선 학습창(초) — Collector:Cbm 설정과 동일 값 (0=기본 60)
     [double]$SyntheticFrac = 0.25,      # 합성 정상 blend 비율
     [switch]$SkipDeploy,                # 모델 생성만 하고 교체·재시작 생략
     [string]$PythonExe = "python"
@@ -45,6 +46,7 @@ $pyArgs = @($pyScript, "--dsn", $Dsn, "--since", $Since, "--out", $stage,
 if ($Until)   { $pyArgs += @("--until", $Until) }
 if ($Robot)   { $pyArgs += @("--robot", $Robot) }
 if ($Channel) { $pyArgs += @("--channel", $Channel) }
+if ($LearningSeconds -gt 0) { $pyArgs += @("--learning-aggregates", $LearningSeconds) }
 
 Write-Host "== 재학습 실행 (구간: $Since ~ $(if ($Until) { $Until } else { '현재' })) =="
 & $PythonExe @pyArgs

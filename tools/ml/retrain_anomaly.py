@@ -33,7 +33,8 @@ from skl2onnx import convert_sklearn
 from skl2onnx.common.data_types import FloatTensorType
 
 WINDOW = 10            # C# MlModelInfo.Window / CbmMonitor 집계 단위와 동일
-LEARNING_AGGREGATES = 60   # CbmOptions.LearningAggregates
+LEARNING_AGGREGATES = 60   # CbmOptions.LearningAggregates 기본값 — Collector:Cbm 설정으로 바꿨다면
+                           # --learning-aggregates 로 같은 값을 넘겨야 런타임 z-공간과 정합된다.
 ABSOLUTE_MIN_STD = 1e-3    # CbmOptions.AbsoluteMinStd
 RELATIVE_MIN_STD = 0.01    # CbmOptions.RelativeMinStd
 SEED = 20260708
@@ -59,6 +60,8 @@ def parse_args() -> argparse.Namespace:
                    help="학습셋 중 합성 정상 비율 0~0.9 (기본 0.25, 0이면 실 데이터만)")
     p.add_argument("--min-windows", type=int, default=5000,
                    help="실 데이터 윈도 최소 개수 — 미달 시 중단 (기본 5000 ≈ 신호당 수 시간)")
+    p.add_argument("--learning-aggregates", type=int, default=LEARNING_AGGREGATES,
+                   help="기준선 학습 집계 수(초) — 런타임 Collector:Cbm 학습창과 같아야 함 (기본 60)")
     p.add_argument("--out", default=None, help="출력 디렉터리 (기본: 저장소 models/)")
     return p.parse_args()
 
@@ -123,7 +126,8 @@ def load_series(conn, args: argparse.Namespace) -> dict[tuple, list[tuple[float,
     return series
 
 
-def z_windows(series: dict[tuple, list[tuple[float, float]]], gap_seconds: int, stride: int) -> np.ndarray:
+def z_windows(series: dict[tuple, list[tuple[float, float]]], gap_seconds: int, stride: int,
+              learning_aggregates: int = LEARNING_AGGREGATES) -> np.ndarray:
     """세그먼트별 기준선 학습 → z → 슬라이딩 윈도 피처 (런타임 CbmMonitor/MlAnomalyMonitor 재현)."""
     feats: list[list[float]] = []
     x = np.arange(WINDOW)
@@ -142,13 +146,13 @@ def z_windows(series: dict[tuple, list[tuple[float, float]]], gap_seconds: int, 
             prev_t = t
 
         for seg in segments:
-            if len(seg) < LEARNING_AGGREGATES + WINDOW:
+            if len(seg) < learning_aggregates + WINDOW:
                 skipped_short += 1
                 continue
-            base = np.asarray(seg[:LEARNING_AGGREGATES])
+            base = np.asarray(seg[:learning_aggregates])
             mean = float(base.mean())
             std = max(float(base.std(ddof=1)), ABSOLUTE_MIN_STD, RELATIVE_MIN_STD * abs(mean))
-            z = (np.asarray(seg[LEARNING_AGGREGATES:]) - mean) / std
+            z = (np.asarray(seg[learning_aggregates:]) - mean) / std
 
             for s in range(0, len(z) - WINDOW + 1, stride):
                 w = z[s:s + WINDOW]
@@ -163,7 +167,7 @@ def z_windows(series: dict[tuple, list[tuple[float, float]]], gap_seconds: int, 
                 ])
 
     if skipped_short:
-        print(f"짧은 세그먼트 {skipped_short}개 제외 (기준선 60 + 윈도 10 집계 미달)")
+        print(f"짧은 세그먼트 {skipped_short}개 제외 (기준선 {learning_aggregates} + 윈도 {WINDOW} 집계 미달)")
     return np.asarray(feats, dtype=np.float32)
 
 
@@ -205,7 +209,7 @@ def main() -> None:
     if not series:
         raise SystemExit("조건에 맞는 데이터가 없습니다 — --since/--robot/--channel 확인.")
 
-    X_real = z_windows(series, args.gap_seconds, args.stride)
+    X_real = z_windows(series, args.gap_seconds, args.stride, args.learning_aggregates)
     n_series = len(series)
     print(f"시리즈 {n_series}개(신호×축), 실 데이터 윈도 {len(X_real)}개")
     if len(X_real) < args.min_windows:
@@ -246,10 +250,11 @@ def main() -> None:
         "window": WINDOW,
         "threshold": threshold,
         "featureNames": FEATURE_NAMES,
+        "learningAggregates": args.learning_aggregates,  # 추적용 — 런타임은 Collector:Cbm 설정을 따른다
         "trainedAtUtc": dt.datetime.now(dt.timezone.utc).isoformat(),
         "note": f"실 데이터 재학습 — 시리즈 {n_series}개, 실 윈도 {len(X_real)}개"
                 f"{f' + 합성 {n_syn}개' if n_syn else ''}"
-                f" (구간 {args.since or '전체'} ~ {args.until or '현재'}).",
+                f" (구간 {args.since or '전체'} ~ {args.until or '현재'}, 학습창 {args.learning_aggregates}초).",
     }
     (out_dir / "anomaly_iforest.json").write_text(
         json.dumps(sidecar, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -133,7 +133,12 @@ namespace BODA.CMS.Collector
             _setCts = setCts;
             _runningSet = Task.WhenAll(pumps);
             _currentRobots = robots;
-            _logger.LogInformation("수집 펌프 {Count}개 기동 (로봇 {Robots}대).", pumps.Count, robots.Count);
+            _logger.LogInformation("수집 펌프 {Count}개 기동 (로봇 {Robots}대) — CBM 기준선 학습창 {Learn}초{Src}.",
+                pumps.Count, robots.Count, _options.Cbm.EffectiveLearningSeconds(),
+                _options.Cbm.LearningSeconds is not null ? " (직접 지정)"
+                    : _options.Cbm.CycleSeconds > 0
+                        ? $" (사이클 {_options.Cbm.CycleSeconds}초 × {_options.Cbm.CyclesToLearn}회)"
+                        : " (기본)");
             return pumps.Count;
         }
 
@@ -148,7 +153,8 @@ namespace BODA.CMS.Collector
             var endpoint = new RobotEndpoint(robot.Host, robot.Port);
 
             // 무인 감시: 채널당 CBM + (모델 있으면) ML — WPF와 동일 파이프라인 (P2/P3의 P5 통합).
-            var cbm = new CbmMonitor();
+            // 기준선 학습창은 Collector:Cbm 설정(작업 사이클 기반)에서 온다.
+            var cbm = new CbmMonitor(_options.Cbm.ToCbmOptions());
             _dashboard.Register(robot.RobotId, source, cbm, null); // 즉시 노출 — ML 로드(콜드 10초+)를 기다리지 않는다
             MlAnomalyMonitor? ml = MlAnomalyMonitor.TryLoad(Path.Combine(AppContext.BaseDirectory, "models"));
             ml?.Attach(cbm);

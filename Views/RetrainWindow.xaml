@@ -88,7 +88,9 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="90" />
+                        <ColumnDefinition Width="80" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="80" />
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Text="로봇" VerticalAlignment="Center" Margin="0,0,6,0"
                                Foreground="{StaticResource MutedBrush}" />
@@ -105,6 +107,13 @@
                     </StackPanel>
                     <TextBox Grid.Column="5" VerticalContentAlignment="Center"
                              Text="{Binding MinWindowsText, UpdateSourceTrigger=PropertyChanged}" />
+                    <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,6,0">
+                        <TextBlock Text="학습창(초)" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
+                        <views:HelpIcon Margin="4,0,0,0" HelpTitle="기준선 학습창 (초)"
+                                        HelpText="신호별 기준선(정상 평균/편차)을 잡는 데 쓰는 시간입니다. 감시 서버(Collector)의 appsettings.json 에서 Collector:Cbm 학습창을 바꿨다면 여기에도 반드시 같은 값을 넣어야 학습된 모델과 런타임 판정이 정합됩니다. 기본 60초. 로봇 작업 사이클이 길면 사이클의 3배 정도를 권장합니다." />
+                    </StackPanel>
+                    <TextBox Grid.Column="7" VerticalContentAlignment="Center"
+                             Text="{Binding LearningSecondsText, UpdateSourceTrigger=PropertyChanged}" />
                 </Grid>
 
                 <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" Margin="0,4,0,0">
