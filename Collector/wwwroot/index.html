@@ -9,7 +9,9 @@
   body { margin: 0; padding: 24px; background: #14171b; color: #d6e1ec;
          font-family: 'Segoe UI', 'Malgun Gothic', sans-serif; }
   h1 { font-size: 20px; margin: 0 0 4px; }
-  #license { color: #8a93a0; font-size: 13px; margin-bottom: 20px; }
+  #license { color: #8a93a0; font-size: 13px; margin-bottom: 10px; }
+  #toolbar { margin-bottom: 16px; }
+  #opMsg { color: #4fc08d; font-size: 12px; margin-left: 8px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
   .card { background: #1b1f24; border: 1px solid #2a2f36; border-radius: 10px; padding: 16px;
           cursor: pointer; }
@@ -41,6 +43,15 @@
 <body>
 <h1>BODA.CMS — 협동로봇 상태 대시보드</h1>
 <div id="license">연결 중…</div>
+<div id="toolbar">
+  <span class="chip" id="btnRelearn"
+        title="CBM 기준선(정상 상태의 평균/편차)을 지금 상태로 다시 학습합니다 — 로봇이 정상 운전 중일 때 누르세요">기준선 재학습</span>
+  <span class="chip" id="btnClearAlerts"
+        title="활성 알림을 해제하고 알림 목록을 비웁니다 (DB 이력은 보존)">알림 리셋</span>
+  <span class="chip" id="btnRestart"
+        title="수집기 서비스를 재시작합니다 — 약 10~20초간 수집·대시보드가 중단됩니다">수집기 재시작</span>
+  <span id="opMsg"></span>
+</div>
 <div class="grid" id="cards"></div>
 <div id="alerts">
   <h2>알림<span id="alertMeta"></span></h2>
@@ -126,6 +137,38 @@ document.getElementById('moreBtn').addEventListener('click', async () => {
   shown = shown.concat(page);
   renderChips();
   renderAlerts();
+});
+
+// ── 운영 버튼: 기준선 재학습 / 알림 리셋 / 수집기 재시작 ──
+async function post(url) {
+  const r = await fetch(url, { method: 'POST' });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+function opMsg(text) {
+  const el = document.getElementById('opMsg');
+  el.textContent = text;
+  setTimeout(() => { if (el.textContent === text) el.textContent = ''; }, 8000);
+}
+
+document.getElementById('btnRelearn').addEventListener('click', async () => {
+  if (!confirm('CBM 기준선을 지금 상태로 다시 학습합니다.\n\n로봇이 "정상 운전 중"일 때 실행해야 합니다 — 정지·웜업 중에 실행하면 그 상태가 기준선이 됩니다.\n(약 1분 학습 후 건강도가 다시 계산됩니다)')) return;
+  try { const r = await post('/api/cbm/relearn'); opMsg(`기준선 재학습 시작 — 채널 ${r.channels}개 (약 1분)`); }
+  catch (e) { opMsg('실패: ' + e.message); }
+});
+
+document.getElementById('btnClearAlerts').addEventListener('click', async () => {
+  try {
+    await post('/api/alerts/clear');
+    opMsg('알림 리셋 완료 — 이전 이력은 DB에 보존됩니다');
+    onFilterChanged();
+  } catch (e) { opMsg('실패: ' + e.message); }
+});
+
+document.getElementById('btnRestart').addEventListener('click', async () => {
+  if (!confirm('수집기 서비스를 재시작합니다.\n\n약 10~20초간 수집과 대시보드가 중단되며, 재기동 후 CBM 기준선도 처음부터 다시 학습됩니다.\n(기준선만 다시 잡으려면 "기준선 재학습"이 무중단이라 더 안전합니다)')) return;
+  try { await post('/api/service/restart'); opMsg('재시작 중 — 잠시 후 자동으로 복구됩니다'); }
+  catch (e) { opMsg('실패: ' + e.message); }
 });
 
 async function refresh() {

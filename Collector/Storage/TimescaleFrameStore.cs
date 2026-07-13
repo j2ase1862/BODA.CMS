@@ -156,6 +156,11 @@ namespace BODA.CMS.Collector.Storage
                 cond.Add("time < @b");
                 cmd.Parameters.AddWithValue("b", DateTime.SpecifyKind(before.ToUniversalTime(), DateTimeKind.Utc));
             }
+            if (q.AfterUtc is DateTime after) // 알림 리셋 이후만 — 이전 이력은 DB에 남고 대시보드에서만 숨김
+            {
+                cond.Add("time > @af");
+                cmd.Parameters.AddWithValue("af", DateTime.SpecifyKind(after.ToUniversalTime(), DateTimeKind.Utc));
+            }
             cmd.Parameters.AddWithValue("take", q.Take);
             cmd.CommandText = $"""
                 SELECT time, robot_id, vendor, channel, signal, axis, severity, kind, message

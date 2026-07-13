@@ -122,6 +122,34 @@ namespace BODA.CMS.Analytics
             }
         }
 
+        /// <summary>
+        /// 기준선·집계 상태 전체 리셋 — 다음 프레임부터 기준선을 다시 학습한다.
+        /// 프로세스 재시작 없이 "정상 운전 중" 시점으로 기준선을 다시 잡는 용도 (대시보드 버튼).
+        /// </summary>
+        public void Reset()
+        {
+            lock (_gate)
+            {
+                _states.Clear();
+                _accum.Clear();
+                _currentBucket = default;
+                _evaluatedOnce = false;
+            }
+        }
+
+        /// <summary>활성 알림(급변·드리프트)만 해제 — 기준선·z 는 유지. 조건이 지속되면 디바운스 후 다시 알림.</summary>
+        public void ClearActiveAlerts()
+        {
+            lock (_gate)
+            {
+                foreach (AxisState s in _states.Values)
+                {
+                    s.SpikeActive = s.DriftActive = false;
+                    s.SpikeStreak = s.DriftStreak = s.NormalStreak = 0;
+                }
+            }
+        }
+
         /// <summary>신호·축별 현재 z 상태 — 스켈레톤 뷰·히트맵 등 상세 시각화용 (Snapshot 의 세부 버전).</summary>
         public IReadOnlyList<CbmAxisDetail> DetailSnapshot
         {

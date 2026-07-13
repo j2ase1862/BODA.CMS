@@ -84,7 +84,8 @@ app.MapGet("/api/alerts", async (DashboardState dashboard, IFrameStore store, IL
         string.IsNullOrWhiteSpace(severity) ? null
             : severity.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
         before?.ToUniversalTime(),
-        Math.Clamp(take ?? 50, 1, 200));
+        Math.Clamp(take ?? 50, 1, 200),
+        AfterUtc: dashboard.AlertsClearedUtc); // '알림 리셋' 이전 이력은 숨김 (DB 보존)
     try
     {
         if (await store.QueryAlertsAsync(query, ct) is { } history)
@@ -95,6 +96,36 @@ app.MapGet("/api/alerts", async (DashboardState dashboard, IFrameStore store, IL
         logger.LogWarning(ex, "알림 이력 DB 조회 실패 — 메모리 링(최근 200)으로 폴백.");
     }
     return Results.Json(dashboard.GetAlerts(query));
+});
+
+// ── 운영 조작 (내부망 전용): 기준선 재학습 / 알림 리셋 / 수집기 재시작 ─────────────────
+// 기준선 재학습: CBM 기준선은 "데이터가 흐르기 시작한 첫 60초"로 고정 학습되므로, 정지·웜업
+// 상태에서 잡혔으면 건강도가 계속 낮게 나온다 — 로봇이 정상 운전 중일 때 이 API로 다시 잡는다.
+app.MapPost("/api/cbm/relearn", (DashboardState dashboard, ILogger<Program> logger) =>
+{
+    int channels = dashboard.RelearnBaselines();
+    logger.LogInformation("CBM 기준선 재학습 시작 — 채널 {Count}개 (대시보드 요청).", channels);
+    return Results.Json(new { channels });
+});
+
+app.MapPost("/api/alerts/clear", (DashboardState dashboard, ILogger<Program> logger) =>
+{
+    int channels = dashboard.ClearAlerts();
+    logger.LogInformation("알림 리셋 — 채널 {Count}개 활성 알림 해제, 이전 이력은 대시보드에서 숨김(DB 보존).", channels);
+    return Results.Json(new { channels });
+});
+
+// 수집기 재시작: 프로세스를 비정상 종료시켜 SCM 복구 정책(install-service.ps1 의 restart/10s)이
+// 재기동하게 한다 — 서비스가 자기 자신을 Restart-Service 할 수는 없기 때문. 콘솔 실행이면 그냥 종료.
+app.MapPost("/api/service/restart", (ILogger<Program> logger) =>
+{
+    logger.LogWarning("수집기 재시작 요청(대시보드) — 프로세스를 종료합니다. 서비스면 복구 정책이 약 10초 후 재기동.");
+    _ = Task.Run(async () =>
+    {
+        await Task.Delay(500); // HTTP 응답이 나갈 시간
+        Environment.Exit(1);   // 정상 종료(0)로 보이면 SCM 복구가 동작하지 않는다
+    });
+    return Results.Json(new { restarting = true });
 });
 
 // ── 로봇 구성 조회/교체 — WPF 앱의 제조사 전환이 대시보드에도 반영되도록 (내부망 전용 API) ──

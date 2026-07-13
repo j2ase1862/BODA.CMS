@@ -19,7 +19,8 @@ namespace BODA.CMS.Collector.Dashboard
     /// BeforeUtc 는 "이전 알림 더 보기" 페이지 커서(그 시각 미만만).
     /// </summary>
     public sealed record AlertQuery(
-        string? Robot, string? Channel, IReadOnlyList<string>? Severities, DateTime? BeforeUtc, int Take);
+        string? Robot, string? Channel, IReadOnlyList<string>? Severities, DateTime? BeforeUtc, int Take,
+        DateTime? AfterUtc = null); // 알림 리셋 이후만 표시 (리셋 이전 이력은 DB에 보존, 대시보드에서만 숨김)
 
     /// <summary>
     /// 웹 대시보드가 읽는 수집기 현재 상태 — 채널별 연결/수집률/CBM/ML 스냅샷 + 최근 알림 링.
@@ -48,6 +49,43 @@ namespace BODA.CMS.Collector.Dashboard
         private readonly object _gate = new();
         private readonly Dictionary<(string Robot, string Channel), Entry> _entries = new();
         private readonly LinkedList<AlertRecord> _alerts = new();
+        private DateTime? _alertsClearedUtc;
+
+        /// <summary>마지막 알림 리셋 시각 — /api/alerts 가 이 시각 이전 이력을 숨긴다 (null 이면 전체 표시).</summary>
+        public DateTime? AlertsClearedUtc { get { lock (_gate) return _alertsClearedUtc; } }
+
+        /// <summary>
+        /// 전 채널 CBM 기준선 + ML 윈도 리셋 — 로봇이 정상 운전 중일 때 호출하면 그 상태가
+        /// 새 기준선이 된다 (서비스 재시작 불필요). 리셋된 채널 수 반환.
+        /// </summary>
+        public int RelearnBaselines()
+        {
+            lock (_gate)
+            {
+                foreach (Entry e in _entries.Values)
+                {
+                    e.Cbm?.Reset();
+                    e.Ml?.Reset();
+                }
+                return _entries.Count;
+            }
+        }
+
+        /// <summary>활성 CBM/ML 알림 해제 + 대시보드 알림 목록 리셋 (DB 이력은 보존). 채널 수 반환.</summary>
+        public int ClearAlerts()
+        {
+            lock (_gate)
+            {
+                foreach (Entry e in _entries.Values)
+                {
+                    e.Cbm?.ClearActiveAlerts();
+                    e.Ml?.ClearActiveAlerts();
+                }
+                _alerts.Clear();
+                _alertsClearedUtc = DateTime.UtcNow;
+                return _entries.Count;
+            }
+        }
 
         /// <summary>로봇 재구성 시 채널 등록을 비운다 — 알림 링은 이력이므로 유지.</summary>
         public void ClearChannels()
@@ -110,7 +148,8 @@ namespace BODA.CMS.Collector.Dashboard
                          && (q.Channel is null || a.Channel == q.Channel)
                          && (q.Severities is not { Count: > 0 }
                              || q.Severities.Contains(a.Severity, StringComparer.OrdinalIgnoreCase))
-                         && (q.BeforeUtc is not DateTime b || a.AtUtc < b))
+                         && (q.BeforeUtc is not DateTime b || a.AtUtc < b)
+                         && (q.AfterUtc is not DateTime af || a.AtUtc > af))
                 .Take(q.Take)
                 .ToArray();
         }

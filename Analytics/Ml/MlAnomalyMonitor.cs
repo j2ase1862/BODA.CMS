@@ -69,6 +69,29 @@ namespace BODA.CMS.Analytics.Ml
         /// <summary>모델 교체(재학습) 시 구독 해제 — 해제 후 Dispose 해야 새 모니터로 안전히 전환된다.</summary>
         public void Detach(CbmMonitor cbm) => cbm.AggregateEvaluated -= OnAggregate;
 
+        /// <summary>윈도·알림 상태 전체 리셋 — CBM 기준선 재학습 시 z 축척이 바뀌므로 함께 리셋한다.</summary>
+        public void Reset()
+        {
+            lock (_gate)
+            {
+                _states.Clear();
+                _scoredWindows = 0;
+            }
+        }
+
+        /// <summary>활성 ML 알림만 해제 — 이상이 지속되면 디바운스 후 다시 알림.</summary>
+        public void ClearActiveAlerts()
+        {
+            lock (_gate)
+            {
+                foreach (AxisState s in _states.Values)
+                {
+                    s.Active = false;
+                    s.OutStreak = s.NormalStreak = 0;
+                }
+            }
+        }
+
         public MlSnapshot Snapshot
         {
             get

@@ -4,6 +4,21 @@
 
 ---
 
+## 2026-07-13 (19) — 대시보드 운영 버튼 (기준선 재학습 · 알림 리셋 · 수집기 재시작)
+
+### 배경
+- 현장에서 모델 재학습 후 "건강도만 계속 하락, ML 은 정상" 증상 — CBM 기준선이 서비스 재시작 직후(정지·웜업 상태) 첫 60초로 고정 학습된 것이 원인. 지금까지는 관리자 PowerShell `Restart-Service` 가 유일한 복구 수단이었다.
+
+### 작업 내용
+- **`CbmMonitor.Reset/ClearActiveAlerts`, `MlAnomalyMonitor.Reset/ClearActiveAlerts`**: 무중단 기준선 재학습(다음 프레임부터 재학습, z 축척이 바뀌므로 ML 윈도 동반 리셋)과 활성 알림 해제(기준선 유지 — 조건 지속 시 디바운스 후 재알림).
+- **REST 3종(내부망)**: `POST /api/cbm/relearn`(전 채널 리셋), `POST /api/alerts/clear`(활성 알림 해제 + 대시보드 목록 리셋 — `AlertQuery.AfterUtc` 로 DB 이력은 보존·숨김만, 재기동하면 다시 보임), `POST /api/service/restart`(0.5초 후 `Environment.Exit(1)` — 서비스 복구 정책 restart/10s 가 재기동, 콘솔 실행은 그냥 종료).
+- **대시보드 툴바**: 라이선스 줄 아래 칩 버튼 3개 + 결과 메시지. 재학습·재시작은 confirm 안내(정상 운전 중 실행 조건, 재시작 중단 시간) 포함.
+
+### 검증
+- 콘솔 수집기 + 시뮬레이터 E2E: 학습 완료(health 92/56) → relearn 즉시 Learning 8% 복귀 → 알림 5건이 clear 후 0건(DB 경로 `time > cleared` 필터 동작) → restart 로 프로세스 종료 확인. 헤드리스 Edge 로 툴바 렌더 확인. 유닛테스트 54/54, 빌드 경고 0.
+
+---
+
 ## 2026-07-13 (18) — 앱 내 AI 재학습 (DB 구간 선택 → 학습 → 모델 교체·핫리로드)
 
 ### 배경
