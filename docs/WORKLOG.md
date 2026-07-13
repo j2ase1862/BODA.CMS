@@ -18,6 +18,7 @@
 ### 검증
 - UIA E2E(실 DB, 7-08 수집분 22,838 프레임): 조회 → 구간 자동 채움 → 학습(시리즈 30, 실 윈도 32,250 + 합성 25%) → ONNX↔sklearn 오차 0.000000 → bin models\ 교체(backup 생성·sidecar trainedAtUtc 갱신) → 카드 핫리로드까지 상태 '완료' 확인. DB 미접속·UAC 거부·Python 부재는 상태문구+수동 적용 안내로 처리. 유닛테스트 54/54, 빌드 경고 0.
 - 참고: 현장 PC 적용은 새 빌드 배포 필요. 기존 `tools\retrain.ps1` 도 그대로 동작(병행 유지).
+- **v0.6.0 패키징**: `tools\package.ps1 -Version 0.6.0` — setup 번들(396MB)·앱/Collector MSI·zip 생성, 앱 패키지에 `tools\ml\retrain_anomaly.py`·Npgsql·models 포함 확인.
 
 ---
 
