@@ -44,6 +44,7 @@ namespace BODA.CMS.ViewModels
 
         private readonly CbmMonitor _cbm = new();
         private volatile MlAnomalyMonitor? _ml; // 백그라운드 로드 완료 후 세팅 (콜드 스타트 10초+ — UI 블록 금지)
+        private readonly Action<string, CbmAlert>? _onCbmAlert;
 
         private string _status = "대기";
         private Brush _statusBrush = Theme.Muted;
@@ -68,6 +69,7 @@ namespace BODA.CMS.ViewModels
             _source = source;
             _getHost = getHost;
             _log = log;
+            _onCbmAlert = onCbmAlert;
             _canUseTier = canUseTier;
             _port = source.Capabilities.DefaultPort.ToString(CultureInfo.InvariantCulture);
 
@@ -80,15 +82,20 @@ namespace BODA.CMS.ViewModels
                 _cbm.AlertRaised += a => onCbmAlert(Title, a); // ⚠️ 드라이버 스레드 — 구독자가 마샬링
 
             // ML 이상탐지: 모델이 있으면 CBM 집계 스트림에 연결 (없으면 CBM만으로 동작).
-            // ONNX 세션 로드는 콜드 스타트에서 10초+ 걸릴 수 있어 백그라운드에서 — UI 기동을 막지 않는다.
             _mlText = "ML 로드 중…";
+            LoadMlModel();
+        }
+
+        // ONNX 세션 로드는 콜드 스타트에서 10초+ 걸릴 수 있어 백그라운드에서 — UI 기동을 막지 않는다.
+        private void LoadMlModel()
+        {
             _ = Task.Run(() =>
             {
                 MlAnomalyMonitor? ml = MlAnomalyMonitor.TryLoad(System.IO.Path.Combine(AppContext.BaseDirectory, "models"));
                 if (ml is not null)
                 {
                     ml.Attach(_cbm);
-                    if (onCbmAlert is not null) ml.AlertRaised += a => onCbmAlert(Title, a);
+                    if (_onCbmAlert is not null) ml.AlertRaised += a => _onCbmAlert(Title, a);
                 }
                 _ml = ml; // 배선 완료 후 공개 — 이후 프레임부터 ML 판정 시작
                 Application.Current?.Dispatcher.BeginInvoke(() =>
@@ -97,6 +104,24 @@ namespace BODA.CMS.ViewModels
                     else if (MlText == "ML 로드 중…") { MlText = "ML 대기"; MlBrush = Theme.Muted; }
                 });
             });
+        }
+
+        /// <summary>
+        /// 재학습으로 models\ 가 교체된 뒤 새 모델을 다시 로드 (앱 재시작 불필요).
+        /// UI 스레드에서 호출 — 기존 모니터를 CBM 스트림에서 떼어낸 뒤 백그라운드로 새로 로드한다.
+        /// </summary>
+        public void ReloadMlModel()
+        {
+            MlAnomalyMonitor? old = _ml;
+            _ml = null;
+            if (old is not null)
+            {
+                old.Detach(_cbm);
+                old.Dispose(); // 진행 중이던 마지막 스코어링은 스코어러가 내부에서 안전 처리
+            }
+            MlText = "ML 로드 중…";
+            MlBrush = Theme.Muted;
+            LoadMlModel();
         }
 
         /// <summary>벤더 전환 등으로 카드가 폐기될 때 네이티브 자원(ONNX 세션) 해제.</summary>

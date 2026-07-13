@@ -50,6 +50,22 @@ namespace BODA.CMS
             DataContext = new MainViewModel(modbus, vendors, license, new Services.CollectorSync());
         }
 
+        // AI 재학습 창 — 단일 인스턴스 (열려 있으면 앞으로만).
+        private Views.RetrainWindow? _retrainWindow;
+
+        private void OnRetrainClick(object sender, RoutedEventArgs e)
+        {
+            if (_retrainWindow is { IsLoaded: true })
+            {
+                _retrainWindow.Activate();
+                return;
+            }
+            var vm = (MainViewModel)DataContext;
+            _retrainWindow = new Views.RetrainWindow(new RetrainViewModel(vm.ReloadMlModels)) { Owner = this };
+            _retrainWindow.Closed += (_, _) => _retrainWindow = null;
+            _retrainWindow.Show();
+        }
+
         // 다크 테마(Themes/Theme.xaml)에 맞춰 OS 타이틀바도 어둡게 — Win10 1809+/Win11.
         // 미지원 OS 에서는 조용히 무시된다(밝은 타이틀바로 동작).
         protected override void OnSourceInitialized(EventArgs e)

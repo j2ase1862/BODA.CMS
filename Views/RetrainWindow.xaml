@@ -1,0 +1,132 @@
+<Window x:Class="BODA.CMS.Views.RetrainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:BODA.CMS.Views"
+        Title="AI 이상탐지 모델 재학습"
+        Height="680" Width="760"
+        MinHeight="560" MinWidth="640"
+        WindowStartupLocation="CenterOwner"
+        FontFamily="Segoe UI Variable Text, Segoe UI, Malgun Gothic" FontSize="13"
+        Background="{StaticResource BgBrush}"
+        Foreground="{StaticResource TextBrush}">
+
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- 안내 -->
+        <Border Grid.Row="0" Style="{StaticResource Card}" Padding="14,10">
+            <TextBlock TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}">
+                수집 DB(telemetry_frames)의 <Run Foreground="{StaticResource TextBrush}" Text="정상 운전 구간" />으로
+                이상탐지 모델을 다시 학습하고, 앱과 Collector 서비스의 모델을 교체합니다.
+                <LineBreak />
+                ⚠ 충돌·비정상 동작이 있던 시간대가 구간에 섞이면 그 패턴까지 정상으로 학습됩니다 — 시작/종료 시각으로 잘라내세요.
+            </TextBlock>
+        </Border>
+
+        <!-- 데이터 선택 -->
+        <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,12,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="Label" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="DB 접속" VerticalAlignment="Center"
+                           Foreground="{StaticResource MutedBrush}" Margin="0,0,14,8" MinWidth="76" />
+                <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,8" VerticalContentAlignment="Center"
+                         Text="{Binding ConnectionString, UpdateSourceTrigger=PropertyChanged}" />
+                <Button Grid.Row="0" Grid.Column="2" Content="데이터 조회" Width="110" Margin="12,0,0,8"
+                        Command="{Binding QueryCommand}" />
+
+                <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,8">
+                    <TextBlock Text="수집 데이터" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
+                    <views:HelpIcon Margin="6,0,0,0" HelpTitle="수집 데이터 선택"
+                                    HelpText="DB에 쌓인 데이터를 로봇×채널 단위로 보여줍니다 (수집 범위 · 건수). 항목을 선택하면 아래 학습 구간과 로봇/채널 필터가 그 범위로 자동 입력되며, 필요하면 직접 수정할 수 있습니다. 로봇/채널을 비우면 전체 데이터로 학습합니다." />
+                </StackPanel>
+                <ComboBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,8"
+                          ItemsSource="{Binding Inventory}"
+                          SelectedItem="{Binding SelectedRow}" />
+
+                <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,8">
+                    <TextBlock Text="학습 구간" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
+                    <views:HelpIcon Margin="6,0,0,0" HelpTitle="학습 구간 (정상 운전만!)"
+                                    HelpText="모델이 '정상'으로 배울 시간 범위입니다 (예: 2026-07-10 09:00). 종료를 비우면 현재까지 사용합니다. 로봇이 정지해 있었거나 충돌·비정상 동작이 있던 시간대는 반드시 제외하세요. 데이터가 최소 수 시간 이상 쌓인 구간을 권장합니다." />
+                </StackPanel>
+                <Grid Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox Grid.Column="0" VerticalContentAlignment="Center"
+                             Text="{Binding SinceText, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBlock Grid.Column="1" Text="~" VerticalAlignment="Center" Margin="10,0"
+                               Foreground="{StaticResource MutedBrush}" />
+                    <TextBox Grid.Column="2" VerticalContentAlignment="Center"
+                             Text="{Binding UntilText, UpdateSourceTrigger=PropertyChanged}" />
+                </Grid>
+
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="필터" VerticalAlignment="Center"
+                           Foreground="{StaticResource MutedBrush}" Margin="0,0,14,8" />
+                <Grid Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="90" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="로봇" VerticalAlignment="Center" Margin="0,0,6,0"
+                               Foreground="{StaticResource MutedBrush}" />
+                    <TextBox Grid.Column="1" VerticalContentAlignment="Center"
+                             Text="{Binding RobotId, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBlock Grid.Column="2" Text="채널" VerticalAlignment="Center" Margin="12,0,6,0"
+                               Foreground="{StaticResource MutedBrush}" />
+                    <TextBox Grid.Column="3" VerticalContentAlignment="Center"
+                             Text="{Binding Channel, UpdateSourceTrigger=PropertyChanged}" />
+                    <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,6,0">
+                        <TextBlock Text="최소 윈도" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
+                        <views:HelpIcon Margin="4,0,0,0" HelpTitle="최소 윈도 수"
+                                        HelpText="학습에 필요한 실 데이터 윈도의 최소 개수입니다 (기본 5000 ≈ 신호당 수 시간). 미달이면 과소적합을 막기 위해 학습을 중단합니다. 데이터가 빠듯한데 지금 학습해야 한다면 2000 정도로 낮춰서 시도할 수 있습니다." />
+                    </StackPanel>
+                    <TextBox Grid.Column="5" VerticalContentAlignment="Center"
+                             Text="{Binding MinWindowsText, UpdateSourceTrigger=PropertyChanged}" />
+                </Grid>
+
+                <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" Margin="0,4,0,0">
+                    <Button Content="재학습 시작" Width="130" Command="{Binding StartCommand}" />
+                    <Button Content="취소" Width="80" Margin="10,0,0,0" Command="{Binding CancelCommand}" />
+                    <Ellipse Width="9" Height="9" Fill="{Binding StatusBrush}" VerticalAlignment="Center" Margin="16,0,8,0" />
+                    <TextBlock Text="{Binding StatusMessage}" Foreground="{Binding StatusBrush}"
+                               FontWeight="SemiBold" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="420" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <TextBlock Grid.Row="2" Text="진행 로그" Foreground="{StaticResource MutedBrush}"
+                   FontWeight="SemiBold" Margin="4,14,0,6" />
+
+        <!-- 진행 로그 -->
+        <Border Grid.Row="3" Style="{StaticResource InsetPanel}" Padding="4">
+            <TextBox Text="{Binding LogText, Mode=OneWay}" IsReadOnly="True"
+                     FontFamily="Consolas" FontSize="12" Foreground="{StaticResource MutedBrush}"
+                     Background="Transparent" BorderThickness="0" Padding="10"
+                     VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"
+                     TextChanged="OnLogChanged" />
+        </Border>
+    </Grid>
+</Window>

@@ -66,6 +66,9 @@ namespace BODA.CMS.Analytics.Ml
 
         public void Attach(CbmMonitor cbm) => cbm.AggregateEvaluated += OnAggregate;
 
+        /// <summary>모델 교체(재학습) 시 구독 해제 — 해제 후 Dispose 해야 새 모니터로 안전히 전환된다.</summary>
+        public void Detach(CbmMonitor cbm) => cbm.AggregateEvaluated -= OnAggregate;
+
         public MlSnapshot Snapshot
         {
             get

@@ -194,6 +194,14 @@ namespace BODA.CMS.ViewModels
             }
         }
 
+        /// <summary>재학습으로 models\ 가 교체된 뒤 전 카드의 ML 모델을 다시 로드 (앱 재시작 불필요).</summary>
+        public void ReloadMlModels()
+        {
+            foreach (TelemetrySourceViewModel s in Sources)
+                s.ReloadMlModel();
+            AppendLogSafe($"재학습된 ML 모델을 다시 로드했습니다 — 채널 카드 {Sources.Count}개.");
+        }
+
         /// <summary>선택한 제조사/IP를 감시 서버(웹 대시보드)에 최선 노력으로 반영 — 결과는 로그로만.</summary>
         private async Task SyncCollectorAsync(VendorDescriptor vendor)
         {

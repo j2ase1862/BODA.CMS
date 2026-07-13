@@ -13,6 +13,7 @@ namespace BODA.CMS.Analytics.Ml
         private readonly string _inputName;
         private readonly string _scoreOutput;
         private readonly object _gate = new(); // InferenceSession.Run은 스레드 안전하지만 보수적으로 직렬화
+        private bool _disposed;
 
         public OnnxAnomalyScorer(string onnxPath)
         {
@@ -34,12 +35,23 @@ namespace BODA.CMS.Analytics.Ml
 
             lock (_gate)
             {
+                // 모델 교체(재학습) 중 드라이버 스레드의 마지막 호출과 Dispose 가 겹칠 수 있다
+                // — 세션이 닫혔으면 "이상 아님" 점수로 조용히 빠진다.
+                if (_disposed) return double.MaxValue;
                 using IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results =
                     _session.Run(inputs, new[] { _scoreOutput });
                 return results[0].AsEnumerable<float>().First();
             }
         }
 
-        public void Dispose() => _session.Dispose();
+        public void Dispose()
+        {
+            lock (_gate)
+            {
+                if (_disposed) return;
+                _disposed = true;
+                _session.Dispose();
+            }
+        }
     }
 }

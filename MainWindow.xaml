@@ -17,7 +17,7 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- 헤더: 브랜드 워드마크 + 라이브 요약 -->
+        <!-- 헤더: 브랜드 워드마크 + 라이브 요약 + 도구 버튼 -->
         <Grid Grid.Row="0" Margin="2,0,2,14">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                 <Border Width="10" Height="22" CornerRadius="3"
@@ -28,6 +28,9 @@
                 <TextBlock Text="협동로봇 상태 모니터" Foreground="{StaticResource MutedBrush}"
                            FontSize="13" VerticalAlignment="Center" Margin="12,3,0,0" />
             </StackPanel>
+            <Button Content="AI 재학습" HorizontalAlignment="Right" VerticalAlignment="Center"
+                    Padding="14,6" Click="OnRetrainClick"
+                    ToolTip="수집 DB의 정상 운전 데이터로 이상탐지 모델을 다시 학습하고 교체합니다" />
         </Grid>
 
         <!-- 본문(연결 설정·채널 카드·알림)은 스크롤 가능 — 작은 화면에서도 카드가 잘리지 않게 -->

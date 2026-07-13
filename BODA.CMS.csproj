@@ -25,6 +25,8 @@
     <!-- 로봇 상태 3D 뷰 (MIT) — WPF Viewport3D 래퍼라 저사양 iGPU에서도 가볍다.
          (HelixToolkit.Wpf 는 .NET Framework 전용 → .NET Core/8 용 Core.Wpf 패키지 사용) -->
     <PackageReference Include="HelixToolkit.Core.Wpf" Version="2.27.0" />
+    <!-- 앱 내 AI 재학습(P3 후속): 수집 DB 인벤토리 조회 — Collector 와 동일 버전 유지. -->
+    <PackageReference Include="Npgsql" Version="8.0.5" />
   </ItemGroup>
 
   <!-- P1에서 물리 분리된 모듈들 — 앱은 조립(컴포지션 루트)과 표현만 담당한다.
@@ -54,6 +56,10 @@
     <None Include="models\**\*.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>models\%(Filename)%(Extension)</Link>
+    </None>
+    <!-- 앱 내 AI 재학습이 호출하는 학습 스크립트 — exe 옆 tools\ml\ 로 복사. -->
+    <None Update="tools\ml\retrain_anomaly.py">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 

@@ -4,6 +4,23 @@
 
 ---
 
+## 2026-07-13 (18) — 앱 내 AI 재학습 (DB 구간 선택 → 학습 → 모델 교체·핫리로드)
+
+### 배경
+- 현장에서 관리자 PowerShell 로 `tools\retrain.ps1` 을 돌리는 방식은 진입장벽이 높고, 현장 PC 의 스크립트 사본이 레포와 어긋나는 사고(배포 단계 `Join-Path` null)도 발생 — 앱 버튼 하나로 대체.
+
+### 작업 내용
+- **재학습 창(헤더 'AI 재학습' 버튼)**: `Views/RetrainWindow` + `ViewModels/RetrainViewModel`.
+  ① 데이터 조회 — telemetry_frames 를 로봇×채널로 집계(min/max/count, 앱에 Npgsql 8.0.5 추가)해 콤보로 제시, 선택 시 학습 구간·필터 자동 채움(수동 편집 가능). ② 재학습 — 진행 로그 실시간 표시, 취소 지원. ③ 교체 — 앱·Collector 서비스 models\ 동시 교체(기존은 `backup-일시\` 보존) 후 서비스 재시작.
+- **파이프라인(`Services/ModelRetrainService`)**: 학습은 검증된 Python 파이프라인(`tools\ml\retrain_anomaly.py`, exe 옆에 번들) 서브프로세스 재사용 — `PYTHONUTF8` 강제로 CP949 로그 깨짐 차단, Npgsql→libpq DSN 변환, 취소 시 프로세스 트리 kill. 배포는 쓰기 가능+서비스 없음이면 인프로세스 복사, 아니면 승격 PowerShell(UAC 1회, BOM UTF-8 생성 스크립트)로 서비스 중지→교체→재시작 — 승격 프로세스는 stdout 을 못 받으므로 로그 파일 경유로 UI 에 회수. Collector 경로는 서비스 레지스트리 `ImagePath` 에서 역추적.
+- **모델 핫리로드(앱 재시작 불필요)**: `MlAnomalyMonitor.Detach` 신설 + `OnnxAnomalyScorer` Dispose 를 게이트 안으로(교체 중 마지막 스코어링과의 경합 시 '정상' 점수로 안전 탈출). `TelemetrySourceViewModel.ReloadMlModel` — 기존 모니터를 CBM 스트림에서 떼고 백그라운드 재로드, `MainViewModel.ReloadMlModels` 가 전 카드에 전파.
+
+### 검증
+- UIA E2E(실 DB, 7-08 수집분 22,838 프레임): 조회 → 구간 자동 채움 → 학습(시리즈 30, 실 윈도 32,250 + 합성 25%) → ONNX↔sklearn 오차 0.000000 → bin models\ 교체(backup 생성·sidecar trainedAtUtc 갱신) → 카드 핫리로드까지 상태 '완료' 확인. DB 미접속·UAC 거부·Python 부재는 상태문구+수동 적용 안내로 처리. 유닛테스트 54/54, 빌드 경고 0.
+- 참고: 현장 PC 적용은 새 빌드 배포 필요. 기존 `tools\retrain.ps1` 도 그대로 동작(병행 유지).
+
+---
+
 ## 2026-07-10 (17) — 로봇 상태 3D 시각화 (카드 3모드: 표·차트·로봇)
 
 ### 작업 내용
