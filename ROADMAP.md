@@ -288,9 +288,37 @@ public sealed class RobotCapabilities
 
 ### 5.4 후보 풀 (우선순위 미정 — 시장 요구 발생 시 §6 절차로 착수)
 
-- **Universal Robots**: RTDE(125/500Hz, 읽기 전용 스트림 — 비개입 원칙과 정합성 최상, 문서 공개). 시장 점유율 1위라 영업 요구 발생 가능성 높음.
+- ~~Universal Robots~~ → §5.5로 승격 (2026-07 드라이버 구현).
 - **Techman(TM)**: Modbus TCP 맵 공개, Ethernet Slave 데이터 스트림.
 - **기타**(FANUC CRX, ABB GoFa 등): 요구 발생 시 조사.
+
+### 5.5 Universal Robots (4호 — 드라이버 구현 완료, URSim·실기 검증 대기)
+
+> 선정 이유: 시장 점유율 1위 + RTDE가 **문서 공개 바이너리 프로토콜**(TCP 30004, 출력 구독 수신 전용)이라
+> 비개입 원칙과 정합성 최상. 외부 SDK·네이티브 DLL 불필요 — 순수 C# 구현(두산 DRFL·Rokae SDK 번들 전례와 대비).
+
+**조사 결과 (2026-07 — §6 1·2단계)**
+- 본선 채널 = **RTDE 출력 구독**: 프로토콜 v2(레시피 id + 출력 주기 지정, URControl 3.10+/5.4+ 필요).
+  컨트롤러가 구독 변수만 주기 송신 — 입력 레시피·스크립트 전송 미사용 → 구조적 비개입·무코딩.
+- 샘플 주기: CB3 125Hz / e-Series 500Hz — 드라이버는 125Hz 요청(실기에서 상향 검토).
+- 신호 매핑: `actual_q`(rad→°), `actual_qd`(rad/s→°/s), `actual_current`(A), `target_moment`(Nm, 모델 목표 토크),
+  `joint_temperatures`(℃). **관절 토크센서 미탑재**(e-Series는 TCP F/T 센서만) → `JointTorqueNm` 없음(null 규약).
+- 30003 실시간 클라이언트·29999 대시보드 서버 등 다른 포트는 불필요 — RTDE 하나로 충분.
+
+**진행 상태 (§6 체크리스트 기준)**
+- [x] 1·2. 문서 조사·채널 분류 (위 조사 결과)
+- [x] 5. 드라이버 본체 — `Drivers.UR`: `UrRtdeSource`(버전 협상→레시피 구독→시작, 무수신 5s→Faulted, 재연결 시맨틱)
+      + `RtdeProtocol`/`RtdeFramer`(패키지 조립·해석·경계 복원). capability: 전류·온도 true → **Pro 자동 판정**
+      (RTDE 문서가 단위를 명세 — Rokae 전례. 실기 검증 게이트는 아래 잔여).
+- [x] 6. 계약 준수 테스트 — 가짜 컨트롤러 TCP 서버로 핸드셰이크·rad→° 정규화·NOT_FOUND 거부·Faulted 검증
+- [x] 카탈로그 등록 — WPF 앱 + Collector ("ur") — 코어 수정 없음(§3 격리 확인)
+- [ ] 🔶 URSim(도커 `universalrobots/ursim_e-series`)으로 파이프라인 통과 확인(§6 7단계) — 수집→적재→대시보드
+- [ ] 🔶 3·4. 실기 매핑·검증: 실 주기 확인(e-Series 500Hz 상향 검토), `actual_current` 부호·단위 sanity, `target_moment` 대조
+- [ ] 8. 실측·펌웨어 호환성 노트 기록 (실기 후)
+
+**작업 노트**: 이 온보딩과 함께 **채널 등급 수동 선택**(WPF 카드 '등급' 콤보) 추가 — 자동 판정을 넘는 상향은 불가,
+하향 선택 시 `TierSignalFilter`(Core)가 심층 신호(전류·토크·온도)를 프레임 단계에서 차단해 라이선스 게이팅 우회를
+막는다. Basic 라이선스 현장에서 Pro급 채널(UR 등)을 위치·속도만으로 운용하는 영업 시나리오 대응.
 
 ---
 
@@ -349,7 +377,12 @@ public sealed class RobotCapabilities
 - DRCF 버전 호환: `DRFL.h`의 `DRCF_VERSION` 매크로(v2/v3)로 분기. **본 장비는 v2 → `DRCF_VERSION=2`.**
 - 버전 표기 해석: 티치펜던트 패키지 `GV0X YY ZZ WW` = **V X.YY.ZZ** (예: `GV02080000`=V2.8.0, `GV02110100`=V2.11.1). 프리픽스 `GV`=v2 계열, `GF`/`03xx`=v3 계열.
 
-**JAKA / Rokae / UR** (조사 시 채움)
+**JAKA / Rokae** (조사 시 채움)
 - JAKA: 공식 SDK·Modbus 문서 URL
 - Rokae: xCore 외부 통신 문서 URL
-- UR: RTDE Guide (universal-robots.com 개발자 문서)
+
+**UR**
+- RTDE 사양: Universal Robots "Real-Time Data Exchange (RTDE) Guide" (universal-robots.com 개발자 문서) — 프로토콜 v2
+- URSim 시뮬레이터: Docker Hub `universalrobots/ursim_e-series` — RTDE를 실기와 동일하게 서빙(하드웨어 없이 검증 가능)
+- 주요 포트: RTDE **30004** / 대시보드 29999 / 실시간 스트림 30003 — 본 드라이버는 30004만 사용
+- 출력 변수 레퍼런스: RTDE Guide 의 "field names" 표 (`actual_q` 등 — 단위·타입 명세)

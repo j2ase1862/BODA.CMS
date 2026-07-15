@@ -38,6 +38,7 @@
     <ProjectReference Include="Drivers\Doosan\BODA.CMS.Drivers.Doosan.csproj" />
     <ProjectReference Include="Drivers\Jaka\BODA.CMS.Drivers.Jaka.csproj" />
     <ProjectReference Include="Drivers\Simulated\BODA.CMS.Drivers.Simulated.csproj" />
+    <ProjectReference Include="Drivers\UR\BODA.CMS.Drivers.UR.csproj" />
   </ItemGroup>
 
   <!-- 유닛테스트가 앱 내부(TelemetrySourceViewModel 등)에 접근하기 위한 선언. -->

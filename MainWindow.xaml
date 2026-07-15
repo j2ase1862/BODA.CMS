@@ -134,7 +134,7 @@
                                 <TextBlock Text="{Binding MlText}" Foreground="{Binding MlBrush}"
                                            FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center" />
                                 <views:HelpIcon Margin="8,0,0,0" HelpTitle="채널 카드"
-                                                HelpText="로봇의 데이터 채널 하나입니다. 괄호는 (제품 등급 · 샘플링 주기 · 패시브 여부) — 등급은 채널이 주는 신호로 자동 판정되며, '패시브'는 로봇 작업을 방해하지 않는 읽기 전용 채널이라는 뜻입니다. 표 아래 체크박스로 표시할 신호를 고를 수 있습니다.&#x0a;&#x0a;· CBM 칩: 기준선 학습(약 1분) 후 건강도 0~100 표시 — 초록≥80, 주황≥50, 빨강은 그 미만.&#x0a;· ML 칩: ONNX 이상탐지 모델의 판정 — 이상 감지 시 축·신호를 표시합니다." />
+                                                HelpText="로봇의 데이터 채널 하나입니다. 괄호는 (제품 등급 · 샘플링 주기 · 패시브 여부) — 등급은 채널이 주는 신호로 자동 판정되고 오른쪽 '등급' 콤보로 하향 운용할 수 있으며, '패시브'는 로봇 작업을 방해하지 않는 읽기 전용 채널이라는 뜻입니다. 표 아래 체크박스로 표시할 신호를 고를 수 있습니다.&#x0a;&#x0a;· CBM 칩: 기준선 학습(약 1분) 후 건강도 0~100 표시 — 초록≥80, 주황≥50, 빨강은 그 미만.&#x0a;· ML 칩: ONNX 이상탐지 모델의 판정 — 이상 감지 시 축·신호를 표시합니다." />
                             </StackPanel>
 
                             <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
@@ -153,6 +153,22 @@
 
                             <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal"
                                         VerticalAlignment="Center" Margin="10,0">
+                                <TextBlock Text="등급" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                <ComboBox Width="76" VerticalContentAlignment="Center"
+                                          ItemsSource="{Binding TierOptions}"
+                                          SelectedItem="{Binding SelectedTier}">
+                                    <ComboBox.Style>
+                                        <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsRunning}" Value="True">
+                                                    <Setter Property="IsEnabled" Value="False" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ComboBox.Style>
+                                </ComboBox>
+                                <views:HelpIcon Margin="6,0,12,0" HelpTitle="제품 등급 선택"
+                                                HelpText="이 채널을 운용할 제품 등급입니다.&#x0a;&#x0a;· 자동(기본): 채널이 주는 신호로 등급을 자동 판정합니다 — 전류나 실측 토크가 있고 10Hz 이상이면 Pro, 아니면 Basic.&#x0a;· Basic: 등급을 강제로 내려 위치·속도만 수집합니다(전류·토크·온도 제외). Basic 라이선스 현장에서 Pro급 로봇을 운용할 때 사용합니다.&#x0a;· Pro: 자동 판정이 Pro인 채널에서만 의미가 있습니다 — 채널 능력을 넘는 상향은 되지 않습니다.&#x0a;&#x0a;모니터링 중에는 변경할 수 없습니다. 하향 운용 시 CBM·ML·차트도 걸러진 신호만 봅니다." />
                                 <TextBlock Text="포트" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
                                 <TextBox Width="60" VerticalContentAlignment="Center"
                                          Text="{Binding Port, UpdateSourceTrigger=PropertyChanged}" />

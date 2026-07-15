@@ -8,6 +8,7 @@ using BODA.CMS.Core.Telemetry;
 using BODA.CMS.Drivers.Doosan;
 using BODA.CMS.Drivers.Jaka;
 using BODA.CMS.Drivers.Simulated;
+using BODA.CMS.Drivers.UR;
 using BODA.CMS.Comms;
 using BODA.CMS.ViewModels;
 
@@ -34,6 +35,10 @@ namespace BODA.CMS
                 {
                     new JakaJsonSource(),    // 네이티브 모니터 스트림(수신 전용) → 실기 확정 전 Basic
                     // Modbus 채널: 실기 프로브로 레지스터 맵 검증 후 추가 (§5.2)
+                }),
+                new VendorDescriptor("ur", "유니버설로봇 (UR)", () => new IRobotTelemetrySource[]
+                {
+                    new UrRtdeSource(), // RTDE 출력 구독(수신 전용) → Pro. 관절 토크센서 미탑재 — 전류·온도·모델토크
                 }),
                 // Rokae: Drivers.Rokae 구현 후 여기에 등록 (ROADMAP §5.3)
                 new VendorDescriptor("sim", "시뮬레이터 (가상 데이터)", () => new IRobotTelemetrySource[]

@@ -19,6 +19,12 @@ namespace BODA.CMS.ViewModels
     /// <summary>채널 카드의 본문 표시 모드.</summary>
     public enum CardView { Table, Chart, Robot }
 
+    /// <summary>등급 콤보 항목 — Value가 null이면 capability 자동 판정.</summary>
+    public sealed record TierOption(string Label, ProductTier? Value)
+    {
+        public override string ToString() => Label;
+    }
+
     /// <summary>
     /// 텔레메트리 소스 1개(= 채널 카드 1장)의 화면 상태.
     /// <see cref="IRobotTelemetrySource"/> 계약에만 의존한다 — 벤더가 늘어나도 이 클래스와 XAML은 불변.
@@ -60,6 +66,7 @@ namespace BODA.CMS.ViewModels
         private Brush _mlBrush = Theme.Muted;
 
         private readonly Func<ProductTier, bool>? _canUseTier;
+        private TierOption _selectedTier;
 
         public TelemetrySourceViewModel(
             IRobotTelemetrySource source, Func<string> getHost, Action<string> log,
@@ -71,6 +78,7 @@ namespace BODA.CMS.ViewModels
             _log = log;
             _onCbmAlert = onCbmAlert;
             _canUseTier = canUseTier;
+            _selectedTier = TierOptions[0];
             _port = source.Capabilities.DefaultPort.ToString(CultureInfo.InvariantCulture);
 
             ToggleCommand = new AsyncRelayCommand(ToggleAsync);
@@ -129,7 +137,37 @@ namespace BODA.CMS.ViewModels
 
         public IRobotTelemetrySource Source => _source;
 
-        public ProductTier Tier => ProductTierEvaluator.Evaluate(_source.Capabilities);
+        /// <summary>등급 선택지 — '자동'은 capability 판정 그대로, 나머지는 하향 운용만 유효(상향 불가).</summary>
+        public IReadOnlyList<TierOption> TierOptions { get; } = new[]
+        {
+            new TierOption("자동", null),
+            new TierOption("Basic", ProductTier.Basic),
+            new TierOption("Pro", ProductTier.Pro),
+        };
+
+        /// <summary>
+        /// 선택 등급 — 실행 중엔 콤보가 비활성(XAML)이라 수집 도중엔 바뀌지 않는다.
+        /// 하향 선택 시 심층 신호는 <see cref="TierSignalFilter"/>가 프레임에서 차단.
+        /// </summary>
+        public TierOption SelectedTier
+        {
+            get => _selectedTier;
+            set
+            {
+                if (value is null || !SetProperty(ref _selectedTier, value)) return;
+                OnPropertyChanged(nameof(Tier));
+                OnPropertyChanged(nameof(SubLabel));
+
+                ProductTier auto = ProductTierEvaluator.Evaluate(_source.Capabilities);
+                if (value.Value is ProductTier t && t > auto)
+                    _log($"[{Title}] 채널 능력이 {auto} 등급 — {t}(으)로 상향할 수 없어 {auto}로 동작합니다.");
+                else if (value.Value is ProductTier sel && sel < auto)
+                    _log($"[{Title}] {sel} 등급으로 하향 운용 — 심층 신호(전류·토크·온도)는 수집에서 제외됩니다.");
+            }
+        }
+
+        /// <summary>유효 등급 = 자동 판정과 수동 선택의 합성 (표시·라이선스 게이팅·신호 차단이 모두 이 값 기준).</summary>
+        public ProductTier Tier => ProductTierEvaluator.Effective(_source.Capabilities, _selectedTier.Value);
 
         public string Title => _source.Capabilities.DisplayName;
 
@@ -279,6 +317,9 @@ namespace BODA.CMS.ViewModels
         // 프레임은 불변이라 스레드 간 전달이 안전하다.
         private void OnFrameReceived(object? sender, RobotTelemetryFrame frame)
         {
+            // 등급 하향 운용이면 심층 신호를 여기서 차단 — 이후 경로(CBM·차트·표·ML)는 전부 걸러진 프레임만 본다.
+            frame = TierSignalFilter.Apply(frame, Tier);
+
             // CBM 경로: 전 샘플 반영 (내부 1초 집계 — 드라이버 스레드 안전).
             _cbm.Ingest(frame);
 

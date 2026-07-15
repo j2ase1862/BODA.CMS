@@ -7,6 +7,7 @@ using BODA.CMS.Core.Telemetry;
 using BODA.CMS.Drivers.Doosan;
 using BODA.CMS.Drivers.Jaka;
 using BODA.CMS.Drivers.Simulated;
+using BODA.CMS.Drivers.UR;
 using Microsoft.Extensions.Options;
 
 // Windows 서비스로 실행되면 작업 디렉터리가 System32라 appsettings.json 을 못 찾는다 —
@@ -41,6 +42,10 @@ builder.Services.AddSingleton(new VendorDescriptor("doosan", "두산로보틱스
 builder.Services.AddSingleton(new VendorDescriptor("jaka", "JAKA", () => new IRobotTelemetrySource[]
 {
     new JakaJsonSource(), // 네이티브 모니터 스트림(수신 전용) — 실기 확정 전 Basic. Modbus 채널은 §5.2 잔여.
+}));
+builder.Services.AddSingleton(new VendorDescriptor("ur", "유니버설로봇", () => new IRobotTelemetrySource[]
+{
+    new UrRtdeSource(), // RTDE 출력 구독(수신 전용) — 전류·온도·모델토크 → Pro (관절 토크센서는 미탑재)
 }));
 builder.Services.AddSingleton(new VendorDescriptor("sim", "시뮬레이터", () => new IRobotTelemetrySource[]
 {

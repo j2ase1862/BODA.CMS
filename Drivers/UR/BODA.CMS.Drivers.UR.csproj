@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Universal Robots 벤더 드라이버 모듈 (ROADMAP §5.4 → §5.5 승격 — 4호 벤더).
+       1차 채널: RTDE 출력 구독 (TCP 30004, 바이너리 스트림 수신 전용 — 구조적 비개입, 문서 공개 프로토콜).
+       외부 SDK 의존 없음 — 순수 C# 구현 (와이어 프로토콜이 공개라 두산 DRFL·Rokae SDK 번들 불필요). -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>BODA.CMS.Drivers.UR</RootNamespace>
+    <AssemblyName>BODA.CMS.Drivers.UR</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Core\BODA.CMS.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BODA.CMS.Tests" />
+  </ItemGroup>
+
+</Project>

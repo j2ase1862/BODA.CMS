@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\Vision\BODA.CMS.Vision.csproj" />
     <ProjectReference Include="..\..\Drivers\Jaka\BODA.CMS.Drivers.Jaka.csproj" />
     <ProjectReference Include="..\..\Drivers\Rokae\BODA.CMS.Drivers.Rokae.csproj" />
+    <ProjectReference Include="..\..\Drivers\UR\BODA.CMS.Drivers.UR.csproj" />
   </ItemGroup>
 
 </Project>

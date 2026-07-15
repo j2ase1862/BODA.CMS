@@ -33,5 +33,17 @@ namespace BODA.CMS.Core.Telemetry
 
             return ProductTier.None;
         }
+
+        /// <summary>
+        /// 수동 등급 선택(UI 콤보)과 자동 판정의 합성. 선택은 자동 판정을 <b>넘어 상향할 수 없다</b> —
+        /// 채널이 못 주는 신호를 등급표만 올려 팔 수 없음. 하향은 유효하되 반드시
+        /// <see cref="TierSignalFilter"/>로 심층 신호를 함께 차단해야 한다(라이선스 게이팅 우회 방지).
+        /// null = 자동 판정 그대로.
+        /// </summary>
+        public static ProductTier Effective(RobotCapabilities caps, ProductTier? requested)
+        {
+            ProductTier auto = Evaluate(caps);
+            return requested is ProductTier t && t < auto ? t : auto;
+        }
     }
 }
