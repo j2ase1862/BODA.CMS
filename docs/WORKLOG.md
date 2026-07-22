@@ -4,6 +4,21 @@
 
 ---
 
+## 2026-07-22 (22) — v0.7.0 배포 패키징 (UR 포함 첫 패키지)
+
+### 배경
+- UR 실기 검증 시도 중 제조사 콤보에 UR 미표시 — 원인은 코드가 아니라 **구버전 빌드 실행**(Debug 7/15 13:35·Release 7/13, 둘 다 UR 커밋 `9bb4f29` 13:47 이전 산출물). 기존 배포 패키지(v0.6.2, 7/13)도 동일하게 UR 이전이라 재패키징.
+
+### 작업 내용
+- 솔루션 재빌드(경고 0·오류 0) 후 `tools\package.ps1 -Version 0.7.0` — setup 번들(396.4MB)·앱 MSI(68.4MB)·Collector MSI(43.5MB)·zip 2종 생성.
+- 앱 zip에 `BODA.CMS.Drivers.UR.dll` 포함 확인 — v0.7.0이 UR 벤더가 들어간 첫 배포 패키지.
+
+### 검증
+- `dotnet test` 72/72 통과. WiX 경고 1건(Collector.wxs ServiceConfig — 기존과 동일, 동작 무관).
+- UR 실기 검증(ROADMAP §5.5)은 새 빌드로 진행 예정 — 결과에 따라 §5.5 체크박스 갱신.
+
+---
+
 ## 2026-07-15 (21) — UR(Universal Robots) 온보딩: RTDE 드라이버 + 채널 등급 수동 선택
 
 ### 배경
