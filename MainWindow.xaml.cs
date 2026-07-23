@@ -52,7 +52,25 @@ namespace BODA.CMS
             LicenseStatus license = LicenseVerifier.Load(Path.Combine(AppContext.BaseDirectory, "license.json"));
 
             // 제조사/IP 선택을 감시 서버(웹 대시보드)에도 자동 반영 — 서버가 없으면 로그만 남기고 무시.
-            DataContext = new MainViewModel(modbus, vendors, license, new Services.CollectorSync());
+            _collectorSync = new Services.CollectorSync();
+            DataContext = new MainViewModel(modbus, vendors, license, _collectorSync);
+        }
+
+        // 웹 대시보드 열기 — 주소 규칙은 CollectorSync 와 동일(BODA_COLLECTOR_URL → 기본 localhost:5100).
+        private readonly Services.CollectorSync _collectorSync;
+
+        private void OnDashboardClick(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(
+                    new System.Diagnostics.ProcessStartInfo(_collectorSync.BaseUrl) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("브라우저 열기 실패: " + ex.GetBaseException().Message,
+                    "웹 대시보드", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         // AI 재학습 창 — 단일 인스턴스 (열려 있으면 앞으로만).

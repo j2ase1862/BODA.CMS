@@ -19,6 +19,9 @@ namespace BODA.CMS.Services
         private readonly string _baseUrl =
             Environment.GetEnvironmentVariable("BODA_COLLECTOR_URL")?.TrimEnd('/') ?? "http://localhost:5100";
 
+        /// <summary>감시 서버(웹 대시보드) 기본 주소 — 앱에서 브라우저로 열 때도 같은 규칙을 쓴다.</summary>
+        public string BaseUrl => _baseUrl;
+
         private sealed record RobotDto(string RobotId, string Vendor, string Host);
 
         /// <summary>동기화 시도 — 결과를 사람이 읽을 로그 문장으로 돌려준다 (실패해도 예외 없음).</summary>
