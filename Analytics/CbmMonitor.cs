@@ -8,6 +8,7 @@ namespace BODA.CMS.Analytics
     /// 동작: 프레임을 <see cref="CbmOptions.AggregationSeconds"/> 창 평균으로 집계 →
     /// 신호·축별 기준선(평균/σ)을 <see cref="CbmOptions.LearningAggregates"/>개 학습 →
     /// 이후 z-점수 기반 급변(즉시값)·드리프트(EWMA) 판정, 디바운스 후 알림, 정상 복귀 시 해제 통지.
+    /// 예외: 온도 신호는 웜업 드리프트가 정상이라 절대 임계로만 판정한다(<see cref="EvaluateTemperature"/>).
     ///
     /// 스레드: <see cref="Ingest"/>는 드라이버 스레드에서 호출돼도 안전(내부 lock).
     /// <see cref="AlertRaised"/>는 Ingest 호출 스레드에서 발화 — UI 마샬링은 구독자 책임.
@@ -187,6 +188,12 @@ namespace BODA.CMS.Analytics
                     continue;
                 }
 
+                if (signal == TelemetrySignals.TemperatureLabel)
+                {
+                    EvaluateTemperature(s, signal, axis, value, atUtc, alerts, aggregates);
+                    continue;
+                }
+
                 double mean = s.Baseline.Mean;
                 double std = Math.Max(s.Baseline.Std,
                     Math.Max(_options.AbsoluteMinStd, _options.RelativeMinStd * Math.Abs(mean)));
@@ -239,6 +246,59 @@ namespace BODA.CMS.Analytics
 
             _accum.Clear();
             return (alerts, aggregates);
+        }
+
+        /// <summary>
+        /// 온도 전용 판정 — 웜업(기동 후 수십 ℃ 상승)이 정상 거동이라 기준선 z 가 부적합해
+        /// 절대 임계로만 판정한다. 건강도 환산용 의사 z: 경고℃=1(감점 시작) → 알람℃=5(0점) 선형,
+        /// 경고 아래는 0(영향 없음). 알림·해제는 기존 디바운스 메커니즘을 그대로 쓴다.
+        /// </summary>
+        private void EvaluateTemperature(AxisState s, string signal, int axis, double value, DateTime atUtc,
+            List<CbmAlert> alerts, List<CbmAggregate> aggregates)
+        {
+            double warn = _options.TemperatureWarnC;
+            double alarm = Math.Max(warn + 1, _options.TemperatureAlarmC);
+            double pseudoZ = Math.Max(0, 1 + 4 * (value - warn) / (alarm - warn));
+            s.LastZ = pseudoZ;
+            s.LastDriftZ = 0;
+            aggregates.Add(new CbmAggregate(_vendorId, _channelId, signal, axis, value, pseudoZ));
+
+            // 과열 (Alarm): 알람 임계 이상이 디바운스 지속.
+            if (value >= alarm)
+            {
+                if (++s.SpikeStreak >= _options.SpikeDebounce && !s.SpikeActive)
+                {
+                    s.SpikeActive = true;
+                    alerts.Add(NewAlert(atUtc, signal, axis, CbmSeverity.Alarm, "과열", pseudoZ, alarm, 0, value) with
+                    { CustomMessage = $"J{axis + 1} 과열: {value:0.0}℃ (알람 임계 {alarm:0.#}℃)" });
+                }
+            }
+            else s.SpikeStreak = 0;
+
+            // 온도주의 (Warning): 경고 임계 이상이 디바운스 지속.
+            if (value >= warn)
+            {
+                if (++s.DriftStreak >= _options.DriftDebounce && !s.DriftActive)
+                {
+                    s.DriftActive = true;
+                    alerts.Add(NewAlert(atUtc, signal, axis, CbmSeverity.Warning, "온도주의", pseudoZ, warn, 0, value) with
+                    { CustomMessage = $"J{axis + 1} 온도주의: {value:0.0}℃ (경고 임계 {warn:0.#}℃)" });
+                }
+            }
+            else s.DriftStreak = 0;
+
+            // 복귀: 경고 임계 아래로 디바운스 지속.
+            if (s.AlertActive && value < warn)
+            {
+                if (++s.NormalStreak >= _options.ResolveDebounce)
+                {
+                    s.SpikeActive = s.DriftActive = false;
+                    s.NormalStreak = 0;
+                    alerts.Add(NewAlert(atUtc, signal, axis, CbmSeverity.Info, "복귀", pseudoZ, warn, 0, value) with
+                    { CustomMessage = $"J{axis + 1} 온도 복귀: {value:0.0}℃ (경고 임계 {warn:0.#}℃ 아래)" });
+                }
+            }
+            else s.NormalStreak = 0;
         }
 
         private CbmAlert NewAlert(DateTime atUtc, string signal, int axis, CbmSeverity severity,

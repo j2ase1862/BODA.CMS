@@ -20,7 +20,7 @@ namespace BODA.CMS.Analytics
         string Signal,
         int AxisIndex,
         CbmSeverity Severity,
-        string Kind,            // "급변" | "드리프트" | "복귀" | "ML 이상" | "ML 복귀"
+        string Kind,            // "급변" | "드리프트" | "과열" | "온도주의" | "복귀" | "ML 이상" | "ML 복귀"
         double Z,
         double BaselineMean,
         double BaselineStd,

@@ -11,6 +11,7 @@ namespace BODA.CMS.Core.Telemetry
     {
         public const string PositionLabel = "위치°";
         public const string VelocityLabel = "속도°/s";
+        public const string TemperatureLabel = "온도℃";
 
         public static IEnumerable<(string Label, double[] Values, string Format)> Enumerate(RobotTelemetryFrame f)
         {
@@ -23,7 +24,7 @@ namespace BODA.CMS.Core.Telemetry
             if (f.ModelTorqueNm is { } mdl) yield return ("모델Nm", D(mdl), "0.00");
             if (f.ExternalTorqueNm is { } ext) yield return ("외란Nm", D(ext), "0.00");
             if (f.MotorCurrentA is { } cur) yield return ("전류A", D(cur), "0.00");
-            if (f.TemperatureC is { } tmp) yield return ("온도℃", D(tmp), "0.0");
+            if (f.TemperatureC is { } tmp) yield return (TemperatureLabel, D(tmp), "0.0");
 
             if (f.VendorRaw is not null)
                 foreach ((string key, double[] raw) in f.VendorRaw)

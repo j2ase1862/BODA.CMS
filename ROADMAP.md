@@ -292,7 +292,7 @@ public sealed class RobotCapabilities
 - **Techman(TM)**: Modbus TCP 맵 공개, Ethernet Slave 데이터 스트림.
 - **기타**(FANUC CRX, ABB GoFa 등): 요구 발생 시 조사.
 
-### 5.5 Universal Robots (4호 — 드라이버 구현 완료, URSim·실기 검증 대기)
+### 5.5 Universal Robots (4호 — 실기 연결·연속 수신 확인, 세부 대조 잔여)
 
 > 선정 이유: 시장 점유율 1위 + RTDE가 **문서 공개 바이너리 프로토콜**(TCP 30004, 출력 구독 수신 전용)이라
 > 비개입 원칙과 정합성 최상. 외부 SDK·네이티브 DLL 불필요 — 순수 C# 구현(두산 DRFL·Rokae SDK 번들 전례와 대비).
@@ -312,9 +312,14 @@ public sealed class RobotCapabilities
       (RTDE 문서가 단위를 명세 — Rokae 전례. 실기 검증 게이트는 아래 잔여).
 - [x] 6. 계약 준수 테스트 — 가짜 컨트롤러 TCP 서버로 핸드셰이크·rad→° 정규화·NOT_FOUND 거부·Faulted 검증
 - [x] 카탈로그 등록 — WPF 앱 + Collector ("ur") — 코어 수정 없음(§3 격리 확인)
-- [ ] 🔶 URSim(도커 `universalrobots/ursim_e-series`)으로 파이프라인 통과 확인(§6 7단계) — 수집→적재→대시보드
-- [ ] 🔶 3·4. 실기 매핑·검증: 실 주기 확인(e-Series 500Hz 상향 검토), `actual_current` 부호·단위 sanity, `target_moment` 대조
+- [x] ~~URSim 파이프라인 통과~~ → 실기 검증으로 대체 (2026-07-24 실기 연결, 수 시간 연속 수신·CBM 동작 확인)
+- [ ] 🔶 3·4. 실기 매핑·검증 잔여: 실 주기 확인(e-Series 500Hz 상향 검토), `actual_current` 부호·단위 sanity, `target_moment` 대조
 - [ ] 8. 실측·펌웨어 호환성 노트 기록 (실기 후)
+
+**실기 발견 (2026-07-24)**: 수 시간 연속 가동 시 관절 온도 웜업이 CBM 건강도를 0까지 끌어내림 —
+온도는 기동 후 수십 ℃ 상승이 정상 거동이라 기준선 z 판정이 구조적으로 부적합(σ 하한 탓에 z 폭주).
+→ **온도 신호만 절대 임계 판정으로 전환**(경고 60℃/알람 75℃ 기본, `Collector:Cbm:TemperatureWarn/AlarmCelsius` 설정):
+경고 아래 건강도 영향 0, 경고~알람 선형 감점, 알람 지속 시 "과열" Alarm. 순간 블립은 기존 디바운스로 무시.
 
 **작업 노트**: 이 온보딩과 함께 **채널 등급 수동 선택**(WPF 카드 '등급' 콤보) 추가 — 자동 판정을 넘는 상향은 불가,
 하향 선택 시 `TierSignalFilter`(Core)가 심층 신호(전류·토크·온도)를 프레임 단계에서 차단해 라이선스 게이팅 우회를

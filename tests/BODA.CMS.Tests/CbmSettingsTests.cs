@@ -48,6 +48,18 @@ namespace BODA.CMS.Tests
         }
 
         [Fact]
+        public void 온도_임계_설정은_CbmOptions에_반영된다()
+        {
+            var s = new CbmSettings { TemperatureWarnCelsius = 50, TemperatureAlarmCelsius = 65 };
+            Assert.Equal(50, s.ToCbmOptions().TemperatureWarnC);
+            Assert.Equal(65, s.ToCbmOptions().TemperatureAlarmC);
+
+            // 미설정이면 엔진 기본 유지.
+            Assert.Equal(60, new CbmSettings().ToCbmOptions().TemperatureWarnC);
+            Assert.Equal(75, new CbmSettings().ToCbmOptions().TemperatureAlarmC);
+        }
+
+        [Fact]
         public void CbmOptions_로_변환하면_학습_집계수에_반영된다()
         {
             var s = new CbmSettings { CycleSeconds = 60, CyclesToLearn = 3 };

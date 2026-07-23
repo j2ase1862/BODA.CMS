@@ -34,5 +34,13 @@ namespace BODA.CMS.Analytics
         /// <summary>감시 제외 신호 — 위치/속도는 동작 의존이라 건강 지표가 아니다.</summary>
         public IReadOnlySet<string> ExcludedSignals { get; init; } =
             new HashSet<string> { TelemetrySignals.PositionLabel, TelemetrySignals.VelocityLabel };
+
+        /// <summary>온도 경고 임계(℃) — 이 아래에서는 온도가 건강도·알림에 전혀 영향을 주지 않는다.
+        /// 온도는 웜업(기동 후 수십 분 상승)이 정상 거동이라 기준선 z 판정이 부적합해,
+        /// 온도 신호만 절대 임계로 판정한다: 경고 아래 100점 ↔ 알람에서 0점 선형.</summary>
+        public double TemperatureWarnC { get; init; } = 60;
+
+        /// <summary>온도 알람 임계(℃) — 이 이상이 디바운스 지속되면 "과열" Alarm.</summary>
+        public double TemperatureAlarmC { get; init; } = 75;
     }
 }

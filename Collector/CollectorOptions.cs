@@ -31,6 +31,12 @@ namespace BODA.CMS.Collector
         /// <summary>학습창(초) 직접 지정 — 설정하면 CycleSeconds 계산보다 우선.</summary>
         public int? LearningSeconds { get; set; }
 
+        /// <summary>온도 경고 임계(℃) — 이 아래에서는 온도가 건강도·알림에 영향 없음. 미설정 시 엔진 기본(60).</summary>
+        public double? TemperatureWarnCelsius { get; set; }
+
+        /// <summary>온도 알람 임계(℃) — 이상 지속 시 "과열" Alarm. 미설정 시 엔진 기본(75).</summary>
+        public double? TemperatureAlarmCelsius { get; set; }
+
         /// <summary>유효 학습창(초): 직접 지정 > 사이클×횟수 > 기본 60. 하한 30초 (집계 1초 = 1건).</summary>
         public int EffectiveLearningSeconds()
         {
@@ -39,8 +45,13 @@ namespace BODA.CMS.Collector
             return Math.Max(30, seconds);
         }
 
-        public CbmOptions ToCbmOptions() =>
-            CbmOptions.Default with { LearningAggregates = EffectiveLearningSeconds() };
+        public CbmOptions ToCbmOptions()
+        {
+            CbmOptions o = CbmOptions.Default with { LearningAggregates = EffectiveLearningSeconds() };
+            if (TemperatureWarnCelsius is { } warn) o = o with { TemperatureWarnC = warn };
+            if (TemperatureAlarmCelsius is { } alarm) o = o with { TemperatureAlarmC = alarm };
+            return o;
+        }
     }
 
     /// <summary>수집 대상 로봇 1대 — 벤더 카탈로그의 드라이버 세트가 이 엔드포인트로 붙는다.</summary>

@@ -159,6 +159,80 @@ namespace BODA.CMS.Tests
             Assert.Equal("감시 신호 없음", snap.WorstDescription);
         }
 
+        /// <summary>초 단위로 전진하는 온도 프레임. 6축 모두 같은 값.</summary>
+        private static RobotTelemetryFrame TempFrame(int second, double tempC) => new()
+        {
+            ReceivedAtUtc = T0.AddSeconds(second),
+            VendorId = "test",
+            ChannelId = "ch",
+            JointPositionDeg = new float[6],
+            TemperatureC = Enumerable.Repeat((float)tempC, 6).ToArray(),
+        };
+
+        /// <summary>온도 기준선 학습(30℃ 부근) + 다음 프레임 시각 반환.</summary>
+        private static int LearnTemp(CbmMonitor m)
+        {
+            for (int i = 0; i <= 3; i++) m.Ingest(TempFrame(i, 30.0));
+            return 4;
+        }
+
+        [Fact]
+        public void 온도_웜업은_건강도에_영향이_없다()
+        {
+            // 실기 증상 재현: 콜드 스타트(30℃) 기준선 학습 후 수 시간 가동으로 55℃까지 상승.
+            // 기준선 z 방식이면 σ 하한(0.3℃) 때문에 z≈83 → 건강도 0. 절대 임계 방식은 100 유지.
+            (CbmMonitor m, List<CbmAlert> alerts) = NewMonitor();
+            int t = LearnTemp(m);
+            foreach (double temp in new[] { 40.0, 50.0, 55.0, 59.0 }) m.Ingest(TempFrame(t++, temp));
+
+            Assert.Equal(100, m.Snapshot.HealthScore);
+            Assert.Empty(alerts);
+        }
+
+        [Fact]
+        public void 온도는_경고임계부터_선형으로_감점된다()
+        {
+            (CbmMonitor m, _) = NewMonitor();
+            int t = LearnTemp(m);
+            // 67.5℃ = 경고(60)~알람(75)의 중간 → 의사 z = 3 → 건강도 100 - 25×(3-1) = 50.
+            m.Ingest(TempFrame(t++, 67.5));
+            m.Ingest(TempFrame(t++, 67.5)); // 버킷 마감 트리거
+
+            Assert.Equal(50, m.Snapshot.HealthScore);
+        }
+
+        [Fact]
+        public void 온도_순간_블립은_디바운스로_무시된다()
+        {
+            (CbmMonitor m, List<CbmAlert> alerts) = NewMonitor();
+            int t = LearnTemp(m);
+            m.Ingest(TempFrame(t++, 76.0)); // 1버킷만 알람 임계 초과(블립)
+            for (int i = 0; i < 4; i++) m.Ingest(TempFrame(t++, 45.0));
+
+            Assert.Empty(alerts);
+            Assert.Equal(100, m.Snapshot.HealthScore); // 복구 후 만점
+        }
+
+        [Fact]
+        public void 온도_알람임계_지속시_과열_Alarm_후_복귀된다()
+        {
+            (CbmMonitor m, List<CbmAlert> alerts) = NewMonitor();
+            int t = LearnTemp(m);
+
+            // 80℃ 지속 — 디바운스(2) 충족 시 "과열" Alarm.
+            for (int i = 0; i < 3; i++) m.Ingest(TempFrame(t++, 80.0));
+            CbmAlert[] overheats = alerts.Where(a => a.Kind == "과열").ToArray();
+            Assert.Equal(6, overheats.Length); // 축마다 1건, 중복 없음
+            Assert.All(overheats, a => Assert.Equal(CbmSeverity.Alarm, a.Severity));
+            Assert.Equal(0, m.Snapshot.HealthScore); // 알람 임계 초과 = 0점
+
+            // 경고 임계 아래로 복귀 — 해제 통지.
+            alerts.Clear();
+            for (int i = 0; i < 4; i++) m.Ingest(TempFrame(t++, 45.0));
+            Assert.Contains(alerts, a => a.Kind == "복귀" && a.Severity == CbmSeverity.Info);
+            Assert.Equal(0, m.Snapshot.ActiveAlertCount);
+        }
+
         [Fact]
         public void VendorRaw_신호도_감시_대상이다()
         {
