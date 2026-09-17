@@ -1,5 +1,5 @@
 ﻿# BODA.CMS 배포 패키징 (ROADMAP §4 P5)
-# 사용: powershell -File tools\package.ps1 [-Version 0.5.0]
+# 사용: powershell -File tools\package.ps1 [-Version 0.7.5]   (미지정 시 Directory.Build.props 의 <Version> 기준선)
 # 산출: dist\BODA.CMS-collector-setup-{v}-x64.exe (통합 설치 — PostgreSQL 동봉, 오프라인 단일 파일. 권장)
 #       dist\BODA.CMS-app-{v}-x64.msi      (WPF 모니터 — 시작 메뉴·바탕화면 바로가기)
 #       dist\BODA.CMS-collector-{v}-x64.msi (수집기+웹 단품 — DB 없이. Windows 서비스 자동 등록, C:\BODA\Collector)
@@ -7,7 +7,13 @@
 # self-contained — 현장 PC에 .NET 설치 불필요. 라이선스(license.json)는 패키지에 포함하지 않는다(고객별 발급).
 # MSI 빌드 도구: WiX 5 (dotnet tool). 없으면 자동 설치한다.
 #   ⚠ WiX 6+ 는 상용 사용 시 OSMF(유지보수비) 동의가 필요하므로 5.0.x 로 고정한다.
-param([string]$Version = "0.5.0")
+param([string]$Version = "")
+
+# -Version 미지정 시 Directory.Build.props 의 기준선을 사용. 지정했는데 기준선과 다르면 경고만(발행 후 기준선 갱신을 잊은 경우).
+$propsPath = Join-Path (Split-Path $PSScriptRoot -Parent) "Directory.Build.props"
+$baseline = ([xml](Get-Content $propsPath)).Project.PropertyGroup.Version
+if (-not $Version) { $Version = $baseline; Write-Host "버전 미지정 → Directory.Build.props 기준선 $Version 사용" }
+elseif ($Version -ne $baseline) { Write-Warning "요청 버전 $Version ≠ Directory.Build.props 기준선 $baseline — 발행 후 기준선을 $Version 으로 올리세요." }
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path $PSScriptRoot -Parent

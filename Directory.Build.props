@@ -1,0 +1,9 @@
+<Project>
+  <!-- 버전 기준선 — 리포 전체 프로젝트 공통(앱·Collector·드라이버·테스트).
+       Debug 빌드도 이 값을 InformationalVersion 으로 갖게 해 인앱 업데이트 체커가 "현재 버전"을 올바로 판정한다
+       (없으면 1.0.0 이 되어 개발 실행에서는 항상 '최신'으로 보인다).
+       패키징은 tools\package.ps1 -Version 이 이 값을 덮어쓴다(미지정 시 이 값을 사용). 릴리스 발행 후 여기를 다음 버전으로 올린다. -->
+  <PropertyGroup>
+    <Version>0.7.5</Version>
+  </PropertyGroup>
+</Project>
