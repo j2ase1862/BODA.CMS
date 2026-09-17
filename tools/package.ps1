@@ -1,4 +1,4 @@
-# BODA.CMS 배포 패키징 (ROADMAP §4 P5)
+﻿# BODA.CMS 배포 패키징 (ROADMAP §4 P5)
 # 사용: powershell -File tools\package.ps1 [-Version 0.5.0]
 # 산출: dist\BODA.CMS-collector-setup-{v}-x64.exe (통합 설치 — PostgreSQL 동봉, 오프라인 단일 파일. 권장)
 #       dist\BODA.CMS-app-{v}-x64.msi      (WPF 모니터 — 시작 메뉴·바탕화면 바로가기)
@@ -58,8 +58,21 @@ Copy-Item (Join-Path $PSScriptRoot "ml\retrain_anomaly.py") (Join-Path $colTools
 $appZip = Join-Path $dist "BODA.CMS-app-$Version-win-x64.zip"
 $colZip = Join-Path $dist "BODA.CMS-collector-$Version-win-x64.zip"
 Remove-Item $appZip, $colZip -ErrorAction SilentlyContinue
-Compress-Archive -Path (Join-Path $stage "app\*") -DestinationPath $appZip
-Compress-Archive -Path (Join-Path $stage "collector\*") -DestinationPath $colZip
+# publish 직후 백신 실시간 스캔이 DLL 을 잠시 잡고 있어 첫 시도가 "다른 프로세스 사용 중"으로 실패하는 일이
+# 반복됐다(v0.7.3·0.7.4 — 3~5초 뒤 재시도하면 성공). 최대 5회 재시도.
+function Compress-WithRetry([string]$Source, [string]$Dest) {
+    for ($try = 1; $try -le 5; $try++) {
+        try { Compress-Archive -Path $Source -DestinationPath $Dest -ErrorAction Stop; return }
+        catch {
+            Remove-Item $Dest -ErrorAction SilentlyContinue
+            if ($try -eq 5) { throw }
+            Write-Host "  zip 재시도 $try/5 — $($_.Exception.Message.Split([char]10)[0])"
+            Start-Sleep -Seconds 4
+        }
+    }
+}
+Compress-WithRetry (Join-Path $stage "app\*") $appZip
+Compress-WithRetry (Join-Path $stage "collector\*") $colZip
 
 # ── MSI ──────────────────────────────────────────────────────────────────────
 # Collector: exe(서비스 등록)·appsettings.json(현장 구성 보존)은 .wxs 에서 명시 컴포넌트로

@@ -14,7 +14,7 @@ namespace BODA.CMS.Services
     /// GitHub Releases 조회 결과 + 현재 버전 비교. <see cref="GitHubUpdateService.CheckAsync"/> 반환 값.
     /// 비교가 불가능한 경우(통신·파싱 실패) 서비스는 null 을 돌려주며 호출 측은 "정보 없음"으로 다룬다.
     /// </summary>
-    public sealed class UpdateInfo
+    public sealed record UpdateInfo
     {
         public Version CurrentVersion { get; init; } = new(0, 0, 0);
         public Version LatestVersion { get; init; } = new(0, 0, 0);

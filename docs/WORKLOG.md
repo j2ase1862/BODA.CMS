@@ -4,6 +4,32 @@
 
 ---
 
+## 2026-09-17 (30) — v0.7.4 발행 + 인앱 업데이트 2단계(자동 설치) + v0.7.5 패키징
+
+### v0.7.4 (1단계 알림 체커 포함) 패키징·발행
+- `package.ps1 -Version 0.7.4` — 첫 시도 zip 단계 "다른 프로세스 사용 중" 재발(#28 과 동일) → 스크립트에 `Compress-WithRetry`(4s 간격 5회) 추가 후 재실행 성공.
+- app zip 의 `BODA.CMS.dll` 에 `GitHubUpdateService` 포함·`UpdateInstallService` 미포함 확인(1단계만). `D:\CMS-Releases` 복사, dist 의 v0.7.3 삭제.
+- `gh release create v0.7.4 --repo j2ase1862/CMS-Releases` 자산 5종 → API `releases/latest` = v0.7.4 확인. **알림 체커가 처음 들어간 배포본** — 이 버전부터 현장 앱이 다음 릴리스를 스스로 안다.
+
+### 2단계 자동 설치
+- `Services/UpdateInstallService.cs`: `DownloadAsync`(스트리밍 `.part` → rename, 진행률, GitHub digest SHA-256 검증·미제공 시 크기 검증, 검증된 동일 파일 재사용, 파일명 화이트리스트: `.msi` + 경로 문자 거부)
+  + `LaunchInstaller`(부트스트랩 `update-bootstrap.ps1` 을 `%LOCALAPPDATA%\BODA\CMS\updates` 에 쓰고 `runas` 로 실행, UAC 거부 1223 → UserDeclined).
+- 부트스트랩(인자만 받는 고정 스크립트, Invoke-Expression 없음): 앱 종료 대기 60s(초과 시 강제 종료) → `msiexec /i /passive /norestart /l*v` → 0/3010 성공 시 MSI 삭제 → `explorer.exe` 경유 재실행(상승 권한 미상속, 원 exe 경로 없으면 `%ProgramFiles%\BODA.CMS\BODA.CMS.exe`) → `ProgramData\BODA\CMS\update-bootstrap.log`.
+- `Views/UpdateWindow`: 릴리스 정보·노트(Markdown # 제거)·진행률 + [지금 설치] / [다운로드 페이지] / [나중에(다운로드 중엔 취소)]. 설치 시작 후 `Application.Shutdown` — 부트스트랩이 재실행. 앱 MSI 없는 릴리스는 [지금 설치] 비활성.
+- **갱신 범위 정책: 모니터 앱 MSI 만.** Collector 는 다른 PC 일 수 있고 서비스 중단을 동반 → 창·설명서에 "collector MSI 로 별도 업그레이드" 명시. VMS 의 서비스 복원 로직은 이식하지 않음.
+- 헤더 클릭 흐름을 MessageBox → UpdateWindow 로 교체. `UpdateInfo` 를 record 로(테스트 `with`).
+
+### 검증
+- 유닛테스트 11건 추가(`UpdateInstallTests`): SHA 검증·진행률·재사용(재다운로드 0회)·SHA 불일치 시 파일 삭제·크기 폴백·HTTP 오류·자산 이름 거부 4종·취소 전파·MSI 부재·부트스트랩 스크립트 내용. 전체 109/109, 빌드 경고 0.
+- **DRYRUN E2E** (`BODA_CMS_VERSION=0.7.0` + `BODA_CMS_UPDATE_DRYRUN=1`, 실제 v0.7.4 릴리스 대상): 배지 → 업데이트 창 → [지금 설치] → 68.5MB 다운로드 진행률 표시 → 내려받은 MSI SHA-256 = GitHub digest 일치(sha256sum 대조) → 부트스트랩 기동 → 앱 종료 → 부트스트랩 로그(종료 대기·dry-run 스킵·재실행) → 앱 재실행 확인(새 PID). 스크린샷 2장.
+- 실제 msiexec 설치는 UAC 보안 데스크톱이라 자동화 불가 — 사용자 확인 항목: v0.7.4 앱 설치 PC 에서 v0.7.5 배지 → [지금 설치] → UAC 승인 → 재실행 후 헤더 v0.7.5.
+- UIA 메모: 소유 창(MessageBox·UpdateWindow)은 RootElement 자식 열거·`FindWindowW($null,…)`(빈 문자열로 전달됨)로 안 잡힘 → `[NullString]::Value` 로 호출해야 함. 버튼은 InvokePattern 대신 SetFocus+Space.
+
+### v0.7.5 패키징·발행
+- 2단계가 들어간 첫 배포본. 현장 흐름: v0.7.4 앱이 v0.7.5 를 감지 → [지금 설치] 로 자동 설치.
+
+---
+
 ## 2026-09-17 (29) — CMS-Releases 배포 리포 신설 + 인앱 업데이트 알림 1단계
 
 ### 배포 리포·릴리스 발행

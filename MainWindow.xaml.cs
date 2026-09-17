@@ -88,27 +88,12 @@ namespace BODA.CMS
                 return;
             }
 
-            // 릴리스 노트는 Markdown — 다이얼로그는 plain text 라 제목 기호(#)만 걷어낸다.
-            string notes = System.Text.RegularExpressions.Regex.Replace(info.ReleaseNotes.Trim(), @"^#+\s*", "",
-                System.Text.RegularExpressions.RegexOptions.Multiline);
-            if (notes.Length > 600) notes = notes.Substring(0, 600) + "...";
-            MessageBoxResult answer = MessageBox.Show(
-                $"새 버전 {info.LatestTagName} 이 출시되었습니다.\n현재 버전: {Vm.CurrentVersionText}\n최신 버전: {info.LatestTagName}"
-                + (notes.Length > 0 ? "\n\n" + notes : string.Empty)
-                + "\n\n다운로드 페이지를 열까요?",
-                "새 버전", MessageBoxButton.YesNo, MessageBoxImage.Information);
-            if (answer != MessageBoxResult.Yes) return;
-            try
-            {
-                System.Diagnostics.Process.Start(
-                    new System.Diagnostics.ProcessStartInfo(info.ReleaseUrl) { UseShellExecute = true });
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("브라우저 열기 실패: " + ex.GetBaseException().Message,
-                    "새 버전", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
+            // 2단계: 업데이트 창 — 노트 + [지금 설치](다운로드·검증·UAC 설치·재실행) / [다운로드 페이지] / [나중에]
+            _updateInstaller ??= new Services.UpdateInstallService();
+            new Views.UpdateWindow(info, Vm.CurrentVersionText, _updateInstaller) { Owner = this }.ShowDialog();
         }
+
+        private Services.UpdateInstallService? _updateInstaller;
 
         // 웹 대시보드 열기 — 주소 규칙은 CollectorSync 와 동일(BODA_COLLECTOR_URL → 기본 localhost:5100).
         private readonly Services.CollectorSync _collectorSync;
