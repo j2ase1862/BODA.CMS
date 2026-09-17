@@ -50,19 +50,49 @@ namespace BODA.CMS.Views
         // 관절 회전(실시간 각도 반영)과 상태 마커(색 교체) — BuildRobot 에서 채움
         private readonly AxisAngleRotation3D[] _rot = new AxisAngleRotation3D[MaxAxes];
         private readonly GeometryModel3D[] _jointMarkers = new GeometryModel3D[MaxAxes];
-        // 영점(zero) 규약 오프셋 — 모델 관절각 θ = q + offset. 모델은 θ=0 에서 각 링크가 앞 링크를
-        // 직진(로컬 +Y)하는 규약이고, UR 은 q=0 에서 팔이 수평으로 뻗은 규약이라 J2·J4 에 +90°.
-        // (UR URDF 대조: J2·J3·J4 평행 피치, J5 는 J4→J5 링크 방향, J6 은 J5 에 수직 = 공구축.)
-        // 벤더 미등록은 0 = "0° 에서 수직 상향" 규약(Doosan·Rokae 등). 시뮬레이터는 UR 규약으로 출력.
+        /// <summary>손목 3축 구조 — 벤더에 따라 다르다. J1~J3(베이스 요·어깨·팔꿈치 피치)는 공통.</summary>
+        internal enum WristKind
+        {
+            /// <summary>UR형 오프셋 손목: J4 피치(J3 와 평행) → d5 링크 → J5(링크 방향 축) → d6 측면 링크 → J6(공구축). UR·JAKA Zu.</summary>
+            OffsetPitch,
+            /// <summary>롤-피치-롤 손목: J4 전완 롤 → J5 피치 → J6 플랜지 롤. Doosan M/A/H 등 전통 6축.</summary>
+            RollPitchRoll,
+        }
+
+        /// <summary>벤더별 3D 프로필: 영점 오프셋(θ = q + offset) + 손목 구조.</summary>
+        internal sealed record RobotProfile(double[] ZeroOffsets, WristKind Wrist);
+
+        // 영점(zero) 규약 — 모델은 θ=0 에서 각 링크가 앞 링크를 직진(로컬 +Y)하는 규약.
+        // UR 은 q=0 에서 팔이 수평으로 뻗은 규약이라 J2·J4 에 +90°(URDF 대조). Doosan·JAKA 등 "0° = 수직 상향" 벤더는 0.
+        // 시뮬레이터는 UR 규약·UR 손목으로 출력한다. 미등록 벤더는 롤-피치-롤·오프셋 0 (전통 6축이 다수).
         private static readonly double[] UrZeroOffsets = { 0, 90, 0, 90, 0, 0 };
         private static readonly double[] NoZeroOffsets = { 0, 0, 0, 0, 0, 0 };
-        private static readonly Dictionary<string, double[]> ZeroOffsetsByVendor = new(StringComparer.OrdinalIgnoreCase)
+        private static readonly RobotProfile DefaultProfile = new(NoZeroOffsets, WristKind.RollPitchRoll);
+        private static readonly Dictionary<string, RobotProfile> ProfilesByVendor = new(StringComparer.OrdinalIgnoreCase)
         {
-            ["ur"] = UrZeroOffsets,
-            ["sim"] = UrZeroOffsets,
+            ["ur"] = new(UrZeroOffsets, WristKind.OffsetPitch),
+            ["sim"] = new(UrZeroOffsets, WristKind.OffsetPitch),
+            ["doosan"] = new(NoZeroOffsets, WristKind.RollPitchRoll),
+            // JAKA Zu: UR 과 같은 평행 3축 + 오프셋 손목, 영점은 수직 상향으로 알려짐 — 실기 대조 전 잠정.
+            ["jaka"] = new(NoZeroOffsets, WristKind.OffsetPitch),
+            // Rokae xMate: 손목 구조·영점 미확인 — 기본(롤-피치-롤·0) 유지. 실기 확인 후 갱신.
         };
-        private double[] _zeroOffsets = NoZeroOffsets;
-        private string? _offsetVendor;
+        /// <summary>검증용 손목 구조 강제: BODA_CMS_3D_WRIST=rpr | offset (시뮬레이터로 두산형 손목 확인 등).</summary>
+        private const string WristOverrideEnv = "BODA_CMS_3D_WRIST";
+
+        private RobotProfile _profile = DefaultProfile;
+        private string? _profileVendor;
+        private WristKind _builtWrist;
+        private ModelVisual3D? _robotVisual;
+
+        internal static RobotProfile ResolveProfile(string vendorId)
+        {
+            RobotProfile profile = ProfilesByVendor.TryGetValue(vendorId, out RobotProfile? p) ? p : DefaultProfile;
+            string? forced = Environment.GetEnvironmentVariable(WristOverrideEnv);
+            if (string.Equals(forced, "rpr", StringComparison.OrdinalIgnoreCase)) profile = profile with { Wrist = WristKind.RollPitchRoll };
+            else if (string.Equals(forced, "offset", StringComparison.OrdinalIgnoreCase)) profile = profile with { Wrist = WristKind.OffsetPitch };
+            return profile;
+        }
 
         // 히트맵: 신호 목록이 바뀔 때만 그리드 재구성
         private string[] _heatSignals = Array.Empty<string>();
@@ -76,7 +106,7 @@ namespace BODA.CMS.Views
         public RobotStatusView()
         {
             InitializeComponent();
-            BuildRobot();
+            BuildRobot(DefaultProfile.Wrist);
             for (int i = 0; i < MaxAxes; i++) _sparkData[i] = new List<double>(SparkCapacity);
             _timer.Tick += (_, _) => OnTick();
             Loaded += (_, _) => _timer.Start();
@@ -132,8 +162,12 @@ namespace BODA.CMS.Views
             return group;
         }
 
-        private void BuildRobot()
+        /// <summary>모델 전체 구성. 손목 구조가 바뀌면(벤더 전환) 통째로 다시 만든다 — 수백 폴리곤이라 비용 무시.</summary>
+        private void BuildRobot(WristKind wrist)
         {
+            if (_robotVisual is not null) Viewport.Children.Remove(_robotVisual);
+            _builtWrist = wrist;
+
             // 베이스 요 45°: q1=0 에서 팔 평면이 기본 카메라(+X+Z 대각) 시선에 정면이 되게. 형상엔 영향 없음.
             var root = new Model3DGroup
             {
@@ -145,8 +179,7 @@ namespace BODA.CMS.Views
                 MakeMaterial("#1A2129", null)));
             root.Children.Add(Cylinder(new Point3D(0, 0, 0), new Point3D(0, 0.06, 0), 0.085, DarkMaterial));
 
-            // 기구 구조는 UR(UR5e ×0.62 축소)과 대조한 것: J1 수직, J2·J3·J4 평행 피치(로컬 Z),
-            // J5 는 J4→J5 링크 방향(로컬 Y), J6 은 J5 에 수직(로컬 Z)이며 공구는 J6 축(+Z) 방향.
+            // 팔 부분은 UR(UR5e ×0.62 축소)과 대조한 것: J1 수직, J2·J3 평행 피치(로컬 Z). 손목(J4~J6)은 벤더별 빌더.
             // 측면 오프셋도 실물처럼 지그재그: 어깨(0) → 상완 바깥(+0.085) → 전완 안쪽(+0.02)
             // → 손목1 바깥(+0.085) → 플랜지(+0.147). 각 그룹의 자식 지오메트리는 그룹 로컬 원점 기준.
 
@@ -168,6 +201,16 @@ namespace BODA.CMS.Views
             g3.Children.Add(_jointMarkers[2]);
             g3.Children.Add(Cylinder(new Point3D(0, 0, -0.065), new Point3D(0, 0.245, -0.065), 0.032, ArmMaterial));
 
+            if (wrist == WristKind.OffsetPitch) BuildWristOffsetPitch(g3);
+            else BuildWristRollPitchRoll(g3);
+
+            _robotVisual = new ModelVisual3D { Content = root };
+            Viewport.Children.Add(_robotVisual);
+        }
+
+        /// <summary>UR형 오프셋 손목 (UR5e ×0.62 대조). g3 원점 = 팔꿈치, 전완은 z=-0.065 평면, 끝은 y=0.245.</summary>
+        private void BuildWristOffsetPitch(Model3DGroup g3)
+        {
             // J4 (손목1 피치) — J3 와 평행. 하우징이 전완 끝에서 바깥으로 나가고 짧은 링크(d5)가 이어진다
             Model3DGroup g4 = JointGroup(g3, 3, new Vector3D(0, 0, 1), new Vector3D(0, 0.245, 0));
             _jointMarkers[3] = Cylinder(new Point3D(0, 0, -0.085), new Point3D(0, 0, 0.035), 0.033, MutedMaterial);
@@ -186,8 +229,29 @@ namespace BODA.CMS.Views
             g6.Children.Add(_jointMarkers[5]);
             g6.Children.Add(Box(new Point3D(0.014, 0, 0.048), 0.008, 0.02, 0.045, ArmMaterial));
             g6.Children.Add(Box(new Point3D(-0.014, 0, 0.048), 0.008, 0.02, 0.045, ArmMaterial));
+        }
 
-            Viewport.Children.Add(new ModelVisual3D { Content = root });
+        /// <summary>롤-피치-롤 손목 (Doosan 등 전통 6축). 손목이 전완 평면(z=-0.065)에서 일직선으로 이어진다.</summary>
+        private void BuildWristRollPitchRoll(Model3DGroup g3)
+        {
+            // J4 (전완 롤) — 전완 축(Y) 회전. 하우징은 전완 끝의 롤 축 원기둥
+            Model3DGroup g4 = JointGroup(g3, 3, new Vector3D(0, 1, 0), new Vector3D(0, 0.245, -0.065));
+            _jointMarkers[3] = Cylinder(new Point3D(0, 0, 0), new Point3D(0, 0.05, 0), 0.036, MutedMaterial);
+            g4.Children.Add(_jointMarkers[3]);
+            g4.Children.Add(Cylinder(new Point3D(0, 0.05, 0), new Point3D(0, 0.10, 0), 0.030, ArmMaterial));
+
+            // J5 (손목 피치) — 롤 축에 수직(Z). 하우징은 피치 축 방향 원기둥
+            Model3DGroup g5 = JointGroup(g4, 4, new Vector3D(0, 0, 1), new Vector3D(0, 0.10, 0));
+            _jointMarkers[4] = Cylinder(new Point3D(0, 0, -0.042), new Point3D(0, 0, 0.042), 0.033, MutedMaterial);
+            g5.Children.Add(_jointMarkers[4]);
+            g5.Children.Add(Cylinder(new Point3D(0, 0, 0), new Point3D(0, 0.055, 0), 0.027, ArmMaterial));
+
+            // J6 (플랜지 롤) — 공구축(Y) 회전 + 그리퍼 손가락은 +Y 방향
+            Model3DGroup g6 = JointGroup(g5, 5, new Vector3D(0, 1, 0), new Vector3D(0, 0.055, 0));
+            _jointMarkers[5] = Cylinder(new Point3D(0, 0, 0), new Point3D(0, 0.028, 0), 0.028, MutedMaterial);
+            g6.Children.Add(_jointMarkers[5]);
+            g6.Children.Add(Box(new Point3D(0.014, 0.05, 0), 0.008, 0.045, 0.02, ArmMaterial));
+            g6.Children.Add(Box(new Point3D(-0.014, 0.05, 0), 0.008, 0.045, 0.02, ArmMaterial));
         }
 
         private static double Pos(float[]? arr, int i) =>
@@ -198,17 +262,19 @@ namespace BODA.CMS.Views
             float[] p = frame.JointPositionDeg;
             int axes = Math.Min(MaxAxes, frame.AxisCount);
 
-            if (!string.Equals(_offsetVendor, frame.VendorId, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(_profileVendor, frame.VendorId, StringComparison.OrdinalIgnoreCase))
             {
-                _offsetVendor = frame.VendorId;
-                _zeroOffsets = ZeroOffsetsByVendor.TryGetValue(frame.VendorId, out double[]? o) ? o : NoZeroOffsets;
+                _profileVendor = frame.VendorId;
+                _profile = ResolveProfile(frame.VendorId);
+                if (_profile.Wrist != _builtWrist) BuildRobot(_profile.Wrist);
             }
+            double[] zeroOffsets = _profile.ZeroOffsets;
 
             // 클램프 없음 — 실기 각도는 그대로 보여야 자세가 맞는다(UR J2 는 -180°대도 정상 범위).
             for (int i = 0; i < MaxAxes; i++)
             {
                 if (i < axes)
-                    _rot[i].Angle = _zeroOffsets[i] + Pos(p, i);
+                    _rot[i].Angle = zeroOffsets[i] + Pos(p, i);
                 _jointMarkers[i].Material = i >= axes ? MutedMaterial
                     : !learned[i] ? MutedMaterial
                     : worstZ[i] < 2 ? OkMaterial

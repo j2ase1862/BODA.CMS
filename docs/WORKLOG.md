@@ -4,6 +4,25 @@
 
 ---
 
+## 2026-09-17 (33) — 3D 로봇 뷰 벤더별 손목 구조 분기
+
+### 배경
+- #27 에서 손목을 UR형(J4 피치 ∥ J3 → d5 링크 → J5 링크축 → d6 측면 → J6 공구축)으로 바꾼 뒤, 두산처럼 롤-피치-롤 손목(J4 전완 롤·J5 피치·J6 플랜지 롤)인 벤더는 J4~J6 이 다른 축으로 움직이게 됨. 팔(J1~J3)·영점 자세(두산 0° = 수직 상향)는 문제 없음.
+
+### 작업 내용 (`Views/RobotStatusView.xaml.cs`)
+- `WristKind { OffsetPitch, RollPitchRoll }` + `RobotProfile(ZeroOffsets, Wrist)` — 벤더 테이블을 영점 오프셋에서 프로필로 확장.
+  `ur`/`sim` = UR 오프셋·OffsetPitch, `doosan` = 0·RollPitchRoll, `jaka` = 0·OffsetPitch(잠정 — UR형 구조·수직 영점으로 알려짐, 실기 대조 전), 미등록(Rokae 포함) = 0·RollPitchRoll.
+- `BuildRobot(wrist)`: 베이스·J1~J3 공통 + `BuildWristOffsetPitch` / `BuildWristRollPitchRoll` 분기. 벤더 전환으로 손목 구조가 바뀌면 모델을 통째로 재구성(수백 폴리곤 — 비용 무시, `_robotVisual` 교체).
+  롤-피치-롤 손목은 전완 평면(z=-0.065)에서 일직선: J4 롤 하우징(Y) → 링크 → J5 피치(Z) → J6 플랜지 롤(Y), 손가락 +Y.
+- 검증용 `BODA_CMS_3D_WRIST=rpr|offset` — 벤더 프로필의 손목만 강제(시뮬레이터로 두산형 손목 확인).
+
+### 검증
+- 빌드 경고 0, 테스트 109/109.
+- 시뮬레이터 UIA 캡처 2장: 기본(UR형 오프셋 손목 — #27 과 동일) / `BODA_CMS_3D_WRIST=rpr`(롤-피치-롤: 전완 끝 롤 하우징 → 피치 관절 → 플랜지·손가락이 공구축 방향) — 두 구조 모두 자기관통 없이 렌더.
+- 두산 실기 대조는 사용자 확인 필요(J4 롤·J5 피치 방향 부호). JAKA·Rokae 는 손목 구조·영점 실기 확인 후 테이블 갱신.
+
+---
+
 ## 2026-09-17 (32) — 버전 기준선 `Directory.Build.props` 도입
 
 - 배경: csproj 에 Version 이 없어 Debug 빌드 어셈블리가 1.0.0 → 인앱 업데이트 체커가 개발 실행에서는 항상 '최신' 판정(#29 잔여).
