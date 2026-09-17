@@ -6,8 +6,9 @@
          갱신은 코드비하인드의 5Hz UI 타이머 — 판독 표·차트와 동일한 저사양 배려 주기. -->
     <Grid Margin="10,8">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="300" />
-            <ColumnDefinition Width="*" />
+            <!-- 3D : 히트맵/추세 = 1 : 2 비율로 창 폭에 따라 함께 늘어난다 (3D 최소 300) -->
+            <ColumnDefinition Width="1*" MinWidth="300" />
+            <ColumnDefinition Width="2*" />
         </Grid.ColumnDefinitions>
 
         <Grid Grid.Column="0" VerticalAlignment="Center">
@@ -42,7 +43,14 @@
             </Grid.RowDefinitions>
             <TextBlock Grid.Row="0" Text="기준선 이탈 (z)" Foreground="#8A93A0" FontSize="11.5"
                        FontWeight="SemiBold" Margin="0,0,0,6" />
-            <Grid Grid.Row="1" x:Name="Heat" />
+            <!-- 히트맵은 창 폭에 따라 늘어나되 상한(코드에서 축 수×96) 안에서 왼쪽 정렬 — 왼쪽 열이 상한, 오른쪽 열은 여백 -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition x:Name="HeatColumn" Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid Grid.Column="0" x:Name="Heat" />
+            </Grid>
             <TextBlock Grid.Row="2" x:Name="SparkHeader" Foreground="#8A93A0" FontSize="11.5"
                        FontWeight="SemiBold" Margin="0,12,0,4" Text="축별 추세 (최근 30초)" />
             <StackPanel Grid.Row="3" x:Name="Sparks" />

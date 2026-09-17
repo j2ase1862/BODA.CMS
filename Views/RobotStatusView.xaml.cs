@@ -107,6 +107,13 @@ namespace BODA.CMS.Views
         {
             InitializeComponent();
             BuildRobot(DefaultProfile.Wrist);
+            // 뷰포트 높이를 폭에 비례(300:235)시켜 창이 넓어져도 화면비가 유지되게 — WPF PerspectiveCamera 의
+            // FieldOfView 는 '수평' 화각이라 폭만 늘면 세로 화각이 줄어 로봇 위가 잘린다. 상한 420.
+            Viewport.SizeChanged += (_, _) =>
+            {
+                double h = Math.Clamp(Viewport.ActualWidth * 235.0 / 300.0, 235, 420);
+                if (Math.Abs(Viewport.Height - h) > 1) Viewport.Height = h;
+            };
             for (int i = 0; i < MaxAxes; i++) _sparkData[i] = new List<double>(SparkCapacity);
             _timer.Tick += (_, _) => OnTick();
             Loaded += (_, _) => _timer.Start();
@@ -325,9 +332,11 @@ namespace BODA.CMS.Views
             Heat.RowDefinitions.Clear();
             Heat.ColumnDefinitions.Clear();
 
+            // 셀 열은 창 폭에 따라 늘어나되(별 크기) 32~96px 로 제한 — 좁은 창에서 겹치지 않고 넓은 창에서 과장되지 않게
             Heat.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(64) });
             for (int a = 0; a < axisCount; a++)
-                Heat.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
+                Heat.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 32, MaxWidth = 96 });
+            HeatColumn.MaxWidth = 64 + 96 * axisCount;
             Heat.RowDefinitions.Add(new RowDefinition());
             foreach (string _ in signals) Heat.RowDefinitions.Add(new RowDefinition());
 
@@ -405,7 +414,9 @@ namespace BODA.CMS.Views
 
                 double min = buf.Min(), max = buf.Max();
                 double span = Math.Max(max - min, 1e-6);
-                const double w = 190, h = 15;
+                // 폭은 레이아웃이 준 실제 폭(창 크기에 따라 늘어남) — 첫 틱(레이아웃 전)은 기본값
+                double w = _sparkLines[i].ActualWidth > 1 ? _sparkLines[i].ActualWidth : 190;
+                const double h = 15;
 
                 var pts = new PointCollection();
                 for (int k = 0; k < buf.Count; k++)
@@ -436,7 +447,7 @@ namespace BODA.CMS.Views
                 _sparkLines[i] = new Polyline
                 {
                     Stroke = AxisBrushes[i], StrokeThickness = 1.4,
-                    Width = 190, Height = 15, HorizontalAlignment = HorizontalAlignment.Left,
+                    Height = 15, HorizontalAlignment = HorizontalAlignment.Stretch,
                 };
                 Grid.SetColumn(_sparkLines[i], 1);
                 row.Children.Add(_sparkLines[i]);
