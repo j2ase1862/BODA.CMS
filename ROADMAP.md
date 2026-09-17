@@ -192,7 +192,9 @@ public sealed class RobotCapabilities
 - [x] **Collector 무인 감시** (P2/P3 잔여 통합): 채널당 CBM+ML 부착, 알림은 대시보드 링(200건) + `telemetry_alerts` 테이블 저장(Storage on 시).
 - [x] **패키징**: `tools/package.ps1` — WPF 앱·Collector를 win-x64 self-contained publish 후 **MSI(WiX 5, `installer/*.wxs`)** + 보조 zip. Collector MSI는 서비스 등록·시작·장애 재시작까지 처리(C:\BODA\Collector, appsettings는 NeverOverwrite로 업그레이드에도 보존), 앱 MSI는 시작 메뉴·바탕화면 바로가기. 현장 PC .NET 설치 불필요, 라이선스는 패키지 미포함·고객별 발급. 실측: app msi 67.6MB / collector msi 43.4MB. ⚠ WiX는 5.0.x 고정 — 6+는 OSMF 동의 필요.
 - [x] **통합 설치 번들**: `installer/Bundle.wxs`(Burn) — `collector-setup-{v}-x64.exe`(396MB, PostgreSQL 16 동봉·오프라인 단일 파일). 기설치 PG는 레지스트리 감지로 건너뜀. DB·테이블은 Collector가 첫 시작 때 자가 생성(`EnsureDatabaseAsync`, 3D000→CREATE DATABASE) + 저장소 초기화 실패는 백오프 재시도(StopHost 방지). 원격 DB·기존 PG 재사용은 `tools/install-db.ps1`.
-- [ ] 자동 업데이트 채널·드라이버 모듈 단위 배포 — 고객 배포 시점에
+- [x] **인앱 업데이트 알림 (1단계)**: 배포 전용 public 리포 `j2ase1862/CMS-Releases` 의 `releases/latest` 를 앱 시작 시 조회(`Services/GitHubUpdateService`, 10s 타임아웃·실패 무시) → 새 버전이면 헤더 버튼이 '새 버전 vX.Y.Z' 배지로 바뀌고 클릭 시 릴리스 노트 + 다운로드 페이지 열기. 릴리스 발행은 `gh release create vX.Y.Z --repo j2ase1862/CMS-Releases` 로 dist 산출물 5종 업로드(WORKLOG #29). 검증용 `BODA_CMS_VERSION` 환경변수로 현재 버전 가장 가능.
+- [ ] 인앱 업데이트 2단계(자동 설치): 앱 MSI 다운로드·SHA-256 검증(GitHub digest 제공 확인됨)·UAC 부트스트랩으로 msiexec 설치·재실행 — VMS `UpdateInstallService` 이식. 앱 MSI 와 Collector MSI(서비스) 갱신 범위 정책 결정 필요.
+- [ ] 드라이버 모듈 단위 배포 — 고객 배포 시점에
 - [ ] Blazor/SignalR 실시간 대시보드 + 사용자 인증 — 다중 고객 SaaS화 시점에
 
 ---

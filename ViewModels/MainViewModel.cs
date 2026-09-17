@@ -34,11 +34,15 @@ namespace BODA.CMS.ViewModels
         private VendorDescriptor _selectedVendor;
         private readonly LicenseStatus _license;
         private readonly Services.CollectorSync? _collectorSync;
+        private readonly Services.GitHubUpdateService? _updateChecker;
+        private Services.UpdateInfo? _latestUpdate;
 
         public MainViewModel(ModbusConnectionService probeConnection, IReadOnlyList<VendorDescriptor> vendors,
-            LicenseStatus? license = null, Services.CollectorSync? collectorSync = null)
+            LicenseStatus? license = null, Services.CollectorSync? collectorSync = null,
+            Services.GitHubUpdateService? updateChecker = null)
         {
             _collectorSync = collectorSync;
+            _updateChecker = updateChecker;
             if (vendors.Count == 0) throw new ArgumentException("벤더 카탈로그가 비어 있습니다.", nameof(vendors));
 
             _probe = probeConnection;
@@ -49,6 +53,43 @@ namespace BODA.CMS.ViewModels
             _selectedVendor = vendors[0];
             LoadSources(_selectedVendor);
             AppendLog(_license.Description);
+        }
+
+        // ── 인앱 업데이트 알림 (1단계: 조회·비교·안내만, 설치는 사용자가 브라우저로) ──────────────
+
+        /// <summary>마지막 조회 결과. null = 아직 조회 전이거나 실패.</summary>
+        public Services.UpdateInfo? LatestUpdate
+        {
+            get => _latestUpdate;
+            private set
+            {
+                if (!SetProperty(ref _latestUpdate, value)) return;
+                OnPropertyChanged(nameof(IsUpdateAvailable));
+                OnPropertyChanged(nameof(UpdateButtonText));
+            }
+        }
+
+        public bool IsUpdateAvailable => _latestUpdate?.IsUpdateAvailable == true;
+
+        /// <summary>헤더 버튼 문구 — 새 버전이 있으면 배지처럼 버전을 노출.</summary>
+        public string UpdateButtonText => IsUpdateAvailable ? $"새 버전 {_latestUpdate!.LatestTagName}" : "업데이트 확인";
+
+        public string CurrentVersionText => "v" + (_updateChecker?.CurrentVersion ?? Services.GitHubUpdateService.ResolveCurrentVersion());
+
+        /// <summary>
+        /// 최신 릴리스를 조회해 <see cref="LatestUpdate"/> 를 갱신한다. 실패는 null 반환(예외 없음).
+        /// silent = 앱 시작 시 자동 조회 — 새 버전이 있을 때만 로그 한 줄. 사용자 명시 확인은 호출 측이 결과를 다이얼로그로.
+        /// </summary>
+        public async Task<Services.UpdateInfo?> CheckForUpdatesAsync(bool silent, System.Threading.CancellationToken ct = default)
+        {
+            if (_updateChecker is null) return null;
+            Services.UpdateInfo? info = await _updateChecker.CheckAsync(ct);
+            if (info is not null) LatestUpdate = info;
+            if (info is null && !silent) AppendLog("업데이트 정보를 가져올 수 없습니다 (네트워크 또는 GitHub 접근 확인).");
+            else if (info is not null && info.IsUpdateAvailable)
+                AppendLog($"새 버전 {info.LatestTagName} 출시 (현재 {CurrentVersionText}) — 헤더의 '새 버전' 버튼으로 다운로드 페이지를 엽니다.");
+            else if (info is not null && !silent) AppendLog($"이미 최신 버전입니다 ({CurrentVersionText}).");
+            return info;
         }
 
         /// <summary>제조사 카탈로그 — 컴포지션 루트가 등록. 새 벤더 = 드라이버 구현 + 카탈로그 1항목.</summary>

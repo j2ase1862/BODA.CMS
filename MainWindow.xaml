@@ -27,8 +27,24 @@
                 </TextBlock>
                 <TextBlock Text="협동로봇 상태 모니터" Foreground="{StaticResource MutedBrush}"
                            FontSize="13" VerticalAlignment="Center" Margin="12,3,0,0" />
+                <TextBlock Text="{Binding CurrentVersionText}" Foreground="{StaticResource MutedBrush}"
+                           FontSize="11.5" VerticalAlignment="Center" Margin="8,4,0,0" Opacity="0.8" />
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <!-- 인앱 업데이트 알림(1단계): 시작 시 GitHub 배포 리포 조회 → 새 버전이면 문구가 '새 버전 vX.Y.Z' 배지로 바뀐다.
+                     클릭: 새 버전이면 릴리스 노트 + 다운로드 페이지 열기, 아니면 지금 확인. -->
+                <Button Content="{Binding UpdateButtonText}" Padding="14,6" Margin="0,0,8,0" Click="OnUpdateClick"
+                        ToolTip="GitHub 배포 저장소(CMS-Releases)의 최신 릴리스를 확인합니다. 새 버전이 있으면 다운로드 페이지를 엽니다.">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsUpdateAvailable}" Value="True">
+                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
                 <Button Content="웹 대시보드" Padding="14,6" Margin="0,0,8,0" Click="OnDashboardClick"
                         ToolTip="감시 서버 웹 대시보드를 기본 브라우저로 엽니다 (기본 http://localhost:5100 — 다른 PC면 환경 변수 BODA_COLLECTOR_URL)" />
                 <Button Content="AI 재학습" Padding="14,6" Click="OnRetrainClick"

@@ -4,6 +4,34 @@
 
 ---
 
+## 2026-09-17 (29) — CMS-Releases 배포 리포 신설 + 인앱 업데이트 알림 1단계
+
+### 배포 리포·릴리스 발행
+- `j2ase1862/CMS-Releases` (public) 신설 — README 에 산출물 5종 용도표. 소스 리포(BODA.CMS)와 분리해 인앱 조회·현장 다운로드 전용.
+- v0.7.3 릴리스 발행: `gh release create v0.7.3 --repo j2ase1862/CMS-Releases --notes-file 노트.md dist\*.msi dist\*.zip dist\*setup*.exe`
+  → 자산 5종(setup 396MB 포함) 업로드, API `releases/latest` 응답에 `digest: sha256:…` 제공 확인(2단계 무결성 검증에 사용 가능).
+- 발행 절차(다음 버전부터): `package.ps1 -Version X.Y.Z` → `D:\CMS-Releases` 복사 → 위 `gh release create vX.Y.Z` (태그 vX.Y.Z 필수 — 체커가 'v' 접두사 파싱).
+
+### 인앱 업데이트 알림 (1단계 — 조회·비교·안내, 설치는 사용자가 브라우저로)
+- `Services/GitHubUpdateService.cs`: `releases/latest` 조회(익명, User-Agent 필수, 10s 타임아웃) → `tag_name` 파싱(pre-release/빌드 메타 거부)
+  → 진입 어셈블리 InformationalVersion(-p:Version)과 비교. 앱 MSI 자산(`BODA.CMS-app-*.msi`)만 선택, 통신·파싱 실패는 예외 없이 null.
+  검증용 `BODA_CMS_VERSION` 환경변수로 현재 버전 가장 가능.
+- `MainViewModel`: `LatestUpdate`/`IsUpdateAvailable`/`UpdateButtonText`/`CurrentVersionText` + `CheckForUpdatesAsync(silent)`. 시작 시 조용히 1회(새 버전이면 로그 한 줄), 명시 확인은 결과를 로그+다이얼로그.
+- 헤더: 브랜드 옆 현재 버전 표기, 버튼 '업데이트 확인' ↔ 새 버전이면 '새 버전 vX.Y.Z'(SemiBold 배지). 클릭 → 노트(Markdown # 제거, 600자 트렁케이트) + "다운로드 페이지를 열까요?" → 기본 브라우저.
+- VMS `GitHubUpdateService` 이식(HttpClientPolicy 의존 제거). 2단계(`UpdateInstallService`, 부트스트랩 스크립트)는 ROADMAP 잔여로 등록.
+
+### 검증
+- 유닛테스트 21건 추가(`UpdateCheckTests`): 태그 파싱·앱 MSI 선택·동일/상위 버전 비활성·HTTP 오류/JSON 불량/태그 불가 null·html_url 폴백·SHA-256 정규화. 전체 98/98, 빌드 경고 0.
+- UIA E2E(`BODA_CMS_VERSION=0.7.0`): 시작 6s 내 헤더 버튼 '새 버전 v0.7.3' + 로그 "새 버전 v0.7.3 출시 (현재 v0.7.0)" → 버튼 → 다이얼로그(현재/최신 버전·릴리스 노트·예/아니요) 스크린샷 확인.
+  UIA InvokePattern/합성 마우스로는 다이얼로그가 안 떠서 SetFocus+Space 로 재현 — 버튼 자체 문제 아님(키보드 경로 정상).
+- 실제 v0.7.3 패키지는 현재 = 최신이라 '업데이트 확인' 문구 + 클릭 시 "이미 최신 버전입니다".
+
+### 잔여
+- 2단계 자동 설치(ROADMAP P5). 앱/Collector 갱신 범위 정책.
+- Debug 빌드는 어셈블리 버전 1.0.0(csproj 에 Version 없음) → 개발 실행에서는 항상 '최신'. 필요하면 csproj `<Version>` 기준선 도입.
+
+---
+
 ## 2026-09-17 (28) — v0.7.3 배포 패키징 (3D 로봇 뷰 기구학 수정 포함) + 인앱 업데이트 검토
 
 - `tools\package.ps1 -Version 0.7.3` — 3D 로봇 뷰 UR 기구학 수정(#27)이 들어간 첫 배포 패키지.

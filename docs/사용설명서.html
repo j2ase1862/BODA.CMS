@@ -340,7 +340,7 @@ DB가 다른 PC에 있으면 <code>Host</code>에 그 PC의 IP를 적고, 그 PC
   <tr><th>하고 싶은 일</th><th>방법</th></tr>
   <tr><td>설정 변경 반영</td><td><code>appsettings.json</code> 수정 → <code>services.msc</code>에서 서비스 <b>다시 시작</b></td></tr>
   <tr><td>동작 기록(로그) 보기</td><td>Windows <b>이벤트 뷰어</b> → Windows 로그 → 응용 프로그램 → 원본 "BODA.CMS.Collector"</td></tr>
-  <tr><td>프로그램 업데이트</td><td>새 버전 <code>.msi</code>를 더블클릭 — 서비스 중지·교체·재시작까지 자동, <b>설정 파일(appsettings.json)은 보존</b></td></tr>
+  <tr><td>프로그램 업데이트</td><td>새 버전 <code>.msi</code>를 더블클릭 — 서비스 중지·교체·재시작까지 자동, <b>설정 파일(appsettings.json)은 보존</b>. 모니터 앱은 인터넷이 되면 시작할 때 새 버전을 확인해 화면 오른쪽 위 버튼이 <b>"새 버전 vX.Y.Z"</b>로 바뀝니다 — 누르면 다운로드 페이지가 열립니다(설치는 직접). 인터넷이 안 되는 PC는 <a href="https://github.com/j2ase1862/CMS-Releases/releases/latest">배포 페이지</a>에서 받아 옮기세요.</td></tr>
   <tr><td>프로그램 제거</td><td>Windows <b>설정 → 앱 → 설치된 앱</b>에서 "BODA.CMS Collector (감시 서버)" 제거 — 설정 파일과 라이선스는 폴더에 남습니다</td></tr>
   <tr><td>데이터 저장(DB) 켜기</td><td>통합 설치(setup.exe)면 <b>이미 켜져 있음</b>. MSI 단품 설치에 나중에 추가하려면 위 "데이터베이스(DB) 준비" 참고</td></tr>
 </table>

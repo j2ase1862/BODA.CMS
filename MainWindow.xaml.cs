@@ -53,7 +53,61 @@ namespace BODA.CMS
 
             // 제조사/IP 선택을 감시 서버(웹 대시보드)에도 자동 반영 — 서버가 없으면 로그만 남기고 무시.
             _collectorSync = new Services.CollectorSync();
-            DataContext = new MainViewModel(modbus, vendors, license, _collectorSync);
+            // 인앱 업데이트 알림(1단계) — 배포 전용 public 리포 j2ase1862/CMS-Releases 의 최신 릴리스 조회.
+            _updateChecker = new Services.GitHubUpdateService();
+            DataContext = new MainViewModel(modbus, vendors, license, _collectorSync, _updateChecker);
+
+            // 시작 직후 조용히 1회 조회 — 실패는 무시, 새 버전이면 헤더 버튼이 배지로 바뀌고 로그 한 줄.
+            Loaded += async (_, _) => await Vm.CheckForUpdatesAsync(silent: true);
+        }
+
+        private readonly Services.GitHubUpdateService _updateChecker;
+        private MainViewModel Vm => (MainViewModel)DataContext;
+
+        private async void OnUpdateClick(object sender, RoutedEventArgs e)
+        {
+            var button = (System.Windows.Controls.Button)sender;
+            Services.UpdateInfo? info = Vm.LatestUpdate;
+            if (info is null || !info.IsUpdateAvailable)
+            {
+                button.IsEnabled = false;
+                try { info = await Vm.CheckForUpdatesAsync(silent: false); }
+                finally { button.IsEnabled = true; }
+            }
+
+            if (info is null)
+            {
+                MessageBox.Show("업데이트 정보를 가져올 수 없습니다.\n네트워크 상태 또는 GitHub 접근 가능 여부를 확인해 주세요.",
+                    "업데이트 확인", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            if (!info.IsUpdateAvailable)
+            {
+                MessageBox.Show($"이미 최신 버전입니다 ({Vm.CurrentVersionText}).",
+                    "업데이트 확인", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // 릴리스 노트는 Markdown — 다이얼로그는 plain text 라 제목 기호(#)만 걷어낸다.
+            string notes = System.Text.RegularExpressions.Regex.Replace(info.ReleaseNotes.Trim(), @"^#+\s*", "",
+                System.Text.RegularExpressions.RegexOptions.Multiline);
+            if (notes.Length > 600) notes = notes.Substring(0, 600) + "...";
+            MessageBoxResult answer = MessageBox.Show(
+                $"새 버전 {info.LatestTagName} 이 출시되었습니다.\n현재 버전: {Vm.CurrentVersionText}\n최신 버전: {info.LatestTagName}"
+                + (notes.Length > 0 ? "\n\n" + notes : string.Empty)
+                + "\n\n다운로드 페이지를 열까요?",
+                "새 버전", MessageBoxButton.YesNo, MessageBoxImage.Information);
+            if (answer != MessageBoxResult.Yes) return;
+            try
+            {
+                System.Diagnostics.Process.Start(
+                    new System.Diagnostics.ProcessStartInfo(info.ReleaseUrl) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("브라우저 열기 실패: " + ex.GetBaseException().Message,
+                    "새 버전", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         // 웹 대시보드 열기 — 주소 규칙은 CollectorSync 와 동일(BODA_COLLECTOR_URL → 기본 localhost:5100).
