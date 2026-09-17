@@ -17,8 +17,10 @@ namespace BODA.CMS.Drivers.Simulated
     public sealed class SimulatedRobotSource : IRobotTelemetrySource
     {
         private const int Axes = 6;
-        private static readonly float[] HomeDeg = { 0f, -20f, 90f, 0f, 45f, 0f };
-        private static readonly float[] AmplitudeDeg = { 60f, 25f, 30f, 40f, 20f, 90f };
+        // UR 영점 규약(q=0 수평 뻗음)으로 출력 — 3D 뷰가 'sim' 을 UR 규약으로 해석한다.
+        // 홈은 전형적 작업 자세, 진폭은 실기 범위 안(자기관통 없음)이라 뷰 쪽 클램프가 필요 없다.
+        private static readonly float[] HomeDeg = { 0f, -100f, 80f, -70f, 90f, 0f };
+        private static readonly float[] AmplitudeDeg = { 40f, 15f, 20f, 20f, 15f, 45f };
 
         private const int FaultAxis = 2;               // J3
         private const double FaultRampSeconds = 20;    // 결함 도달까지 램프

@@ -50,11 +50,19 @@ namespace BODA.CMS.Views
         // 관절 회전(실시간 각도 반영)과 상태 마커(색 교체) — BuildRobot 에서 채움
         private readonly AxisAngleRotation3D[] _rot = new AxisAngleRotation3D[MaxAxes];
         private readonly GeometryModel3D[] _jointMarkers = new GeometryModel3D[MaxAxes];
-        // 기본 자세 오프셋: 각도 0일 때 제품 사진 같은 자세가 되게.
-        private static readonly double[] RestOffsets = { 0, -35, 60, 0, 30, 0 };
-        // 렌더링용 관절 가동범위(±°) — 일반 협동로봇 스펙 수준. 실로봇 각도는 어차피 한계 안이라
-        // 왜곡이 없고, 시뮬레이터의 무제한 사인파가 비현실적 자세(자기관통)를 만드는 것만 막는다.
-        private static readonly double[] JointLimits = { 360, 115, 150, 360, 120, 360 };
+        // 영점(zero) 규약 오프셋 — 모델 관절각 θ = q + offset. 모델은 θ=0 에서 각 링크가 앞 링크를
+        // 직진(로컬 +Y)하는 규약이고, UR 은 q=0 에서 팔이 수평으로 뻗은 규약이라 J2·J4 에 +90°.
+        // (UR URDF 대조: J2·J3·J4 평행 피치, J5 는 J4→J5 링크 방향, J6 은 J5 에 수직 = 공구축.)
+        // 벤더 미등록은 0 = "0° 에서 수직 상향" 규약(Doosan·Rokae 등). 시뮬레이터는 UR 규약으로 출력.
+        private static readonly double[] UrZeroOffsets = { 0, 90, 0, 90, 0, 0 };
+        private static readonly double[] NoZeroOffsets = { 0, 0, 0, 0, 0, 0 };
+        private static readonly Dictionary<string, double[]> ZeroOffsetsByVendor = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["ur"] = UrZeroOffsets,
+            ["sim"] = UrZeroOffsets,
+        };
+        private double[] _zeroOffsets = NoZeroOffsets;
+        private string? _offsetVendor;
 
         // 히트맵: 신호 목록이 바뀔 때만 그리드 재구성
         private string[] _heatSignals = Array.Empty<string>();
@@ -115,7 +123,7 @@ namespace BODA.CMS.Views
         /// <summary>관절 그룹 생성: 부모의 attach 지점으로 이동 + 회전축. 자식 지오메트리는 로컬 원점 기준.</summary>
         private Model3DGroup JointGroup(Model3DGroup parent, int axisIndex, Vector3D rotationAxis, Vector3D attach)
         {
-            _rot[axisIndex] = new AxisAngleRotation3D(rotationAxis, RestOffsets[axisIndex]);
+            _rot[axisIndex] = new AxisAngleRotation3D(rotationAxis, 0);
             var transform = new Transform3DGroup();
             transform.Children.Add(new RotateTransform3D(_rot[axisIndex]));
             transform.Children.Add(new TranslateTransform3D(attach));
@@ -126,50 +134,58 @@ namespace BODA.CMS.Views
 
         private void BuildRobot()
         {
-            var root = new Model3DGroup();
+            // 베이스 요 45°: q1=0 에서 팔 평면이 기본 카메라(+X+Z 대각) 시선에 정면이 되게. 형상엔 영향 없음.
+            var root = new Model3DGroup
+            {
+                Transform = new RotateTransform3D(new AxisAngleRotation3D(new Vector3D(0, 1, 0), 45)),
+            };
 
             // 바닥 원판 + 받침대 (정적)
             root.Children.Add(Cylinder(new Point3D(0, -0.006, 0), new Point3D(0, 0, 0), 0.33,
                 MakeMaterial("#1A2129", null)));
             root.Children.Add(Cylinder(new Point3D(0, 0, 0), new Point3D(0, 0.06, 0), 0.085, DarkMaterial));
 
+            // 기구 구조는 UR(UR5e ×0.62 축소)과 대조한 것: J1 수직, J2·J3·J4 평행 피치(로컬 Z),
+            // J5 는 J4→J5 링크 방향(로컬 Y), J6 은 J5 에 수직(로컬 Z)이며 공구는 J6 축(+Z) 방향.
+            // 측면 오프셋도 실물처럼 지그재그: 어깨(0) → 상완 바깥(+0.085) → 전완 안쪽(+0.02)
+            // → 손목1 바깥(+0.085) → 플랜지(+0.147). 각 그룹의 자식 지오메트리는 그룹 로컬 원점 기준.
+
             // J1 (베이스 요) — Y축 회전
             Model3DGroup g1 = JointGroup(root, 0, new Vector3D(0, 1, 0), new Vector3D(0, 0.06, 0));
             _jointMarkers[0] = Cylinder(new Point3D(0, 0, 0), new Point3D(0, 0.05, 0), 0.062, MutedMaterial);
             g1.Children.Add(_jointMarkers[0]);
-            g1.Children.Add(Cylinder(new Point3D(0, 0.05, 0), new Point3D(0, 0.17, 0), 0.048, ArmMaterial));
+            g1.Children.Add(Cylinder(new Point3D(0, 0.05, 0), new Point3D(0, 0.10, 0), 0.048, ArmMaterial));
 
-            // J2 (어깨 피치) — Z축 회전. 실물처럼 상완을 기둥과 다른 측면 평면(z+0.055)에 배치
-            // — 팔이 접힐 때 기둥·베이스를 옆으로 비켜 지나가 자기관통이 없다.
-            Model3DGroup g2 = JointGroup(g1, 1, new Vector3D(0, 0, 1), new Vector3D(0, 0.17, 0));
-            _jointMarkers[1] = Cylinder(new Point3D(0, 0, -0.05), new Point3D(0, 0, 0.095), 0.05, MutedMaterial);
+            // J2 (어깨 피치) — Z축. 어깨 하우징은 J2 축 방향 원기둥, 상완은 그 바깥 끝에서 시작
+            Model3DGroup g2 = JointGroup(g1, 1, new Vector3D(0, 0, 1), new Vector3D(0, 0.10, 0));
+            _jointMarkers[1] = Cylinder(new Point3D(0, 0, -0.045), new Point3D(0, 0, 0.10), 0.05, MutedMaterial);
             g2.Children.Add(_jointMarkers[1]);
-            g2.Children.Add(Cylinder(new Point3D(0, 0, 0.055), new Point3D(0, 0.28, 0.055), 0.038, ArmMaterial));
+            g2.Children.Add(Cylinder(new Point3D(0, 0, 0.085), new Point3D(0, 0.265, 0.085), 0.038, ArmMaterial));
 
-            // J3 (팔꿈치 피치) — 전완은 한 평면 더 바깥(z+0.055)으로: 상완과도 겹치지 않고 접힌다
-            Model3DGroup g3 = JointGroup(g2, 2, new Vector3D(0, 0, 1), new Vector3D(0, 0.28, 0.055));
-            _jointMarkers[2] = Cylinder(new Point3D(0, 0, -0.01), new Point3D(0, 0, 0.10), 0.041, MutedMaterial);
+            // J3 (팔꿈치 피치) — 전완은 팔꿈치 안쪽(어깨 평면 근처)으로 되돌아온다
+            Model3DGroup g3 = JointGroup(g2, 2, new Vector3D(0, 0, 1), new Vector3D(0, 0.265, 0.085));
+            _jointMarkers[2] = Cylinder(new Point3D(0, 0, -0.10), new Point3D(0, 0, 0.035), 0.042, MutedMaterial);
             g3.Children.Add(_jointMarkers[2]);
-            g3.Children.Add(Cylinder(new Point3D(0, 0, 0.055), new Point3D(0, 0.23, 0.055), 0.032, ArmMaterial));
+            g3.Children.Add(Cylinder(new Point3D(0, 0, -0.065), new Point3D(0, 0.245, -0.065), 0.032, ArmMaterial));
 
-            // J4 (손목 롤) — 팔 축(Y) 회전
-            Model3DGroup g4 = JointGroup(g3, 3, new Vector3D(0, 1, 0), new Vector3D(0, 0.23, 0.055));
-            _jointMarkers[3] = Cylinder(new Point3D(0, 0, 0), new Point3D(0, 0.05, 0), 0.037, MutedMaterial);
+            // J4 (손목1 피치) — J3 와 평행. 하우징이 전완 끝에서 바깥으로 나가고 짧은 링크(d5)가 이어진다
+            Model3DGroup g4 = JointGroup(g3, 3, new Vector3D(0, 0, 1), new Vector3D(0, 0.245, 0));
+            _jointMarkers[3] = Cylinder(new Point3D(0, 0, -0.085), new Point3D(0, 0, 0.035), 0.033, MutedMaterial);
             g4.Children.Add(_jointMarkers[3]);
-            g4.Children.Add(Cylinder(new Point3D(0, 0.05, 0), new Point3D(0, 0.10, 0), 0.031, ArmMaterial));
+            g4.Children.Add(Cylinder(new Point3D(0, 0, 0), new Point3D(0, 0.062, 0), 0.028, ArmMaterial));
 
-            // J5 (손목 피치)
-            Model3DGroup g5 = JointGroup(g4, 4, new Vector3D(0, 0, 1), new Vector3D(0, 0.10, 0));
-            _jointMarkers[4] = Cylinder(new Point3D(0, 0, -0.042), new Point3D(0, 0, 0.042), 0.033, MutedMaterial);
+            // J5 (손목2) — J4→J5 링크 방향(Y) 축. 하우징은 그 축 방향 원기둥, 이어 d6 링크가 측면(+Z)으로
+            Model3DGroup g5 = JointGroup(g4, 4, new Vector3D(0, 1, 0), new Vector3D(0, 0.062, 0));
+            _jointMarkers[4] = Cylinder(new Point3D(0, -0.03, 0), new Point3D(0, 0.03, 0), 0.033, MutedMaterial);
             g5.Children.Add(_jointMarkers[4]);
-            g5.Children.Add(Cylinder(new Point3D(0, 0, 0), new Point3D(0, 0.055, 0), 0.027, ArmMaterial));
+            g5.Children.Add(Cylinder(new Point3D(0, 0, 0), new Point3D(0, 0, 0.062), 0.026, ArmMaterial));
 
-            // J6 (플랜지 롤) + 그리퍼 손가락
-            Model3DGroup g6 = JointGroup(g5, 5, new Vector3D(0, 1, 0), new Vector3D(0, 0.055, 0));
-            _jointMarkers[5] = Cylinder(new Point3D(0, 0, 0), new Point3D(0, 0.028, 0), 0.028, MutedMaterial);
+            // J6 (손목3 = 플랜지) — 공구축(Z) 회전 + 그리퍼 손가락은 +Z 방향
+            Model3DGroup g6 = JointGroup(g5, 5, new Vector3D(0, 0, 1), new Vector3D(0, 0, 0.062));
+            _jointMarkers[5] = Cylinder(new Point3D(0, 0, 0), new Point3D(0, 0, 0.025), 0.028, MutedMaterial);
             g6.Children.Add(_jointMarkers[5]);
-            g6.Children.Add(Box(new Point3D(0.016, 0.05, 0), 0.009, 0.045, 0.02, ArmMaterial));
-            g6.Children.Add(Box(new Point3D(-0.016, 0.05, 0), 0.009, 0.045, 0.02, ArmMaterial));
+            g6.Children.Add(Box(new Point3D(0.014, 0, 0.048), 0.008, 0.02, 0.045, ArmMaterial));
+            g6.Children.Add(Box(new Point3D(-0.014, 0, 0.048), 0.008, 0.02, 0.045, ArmMaterial));
 
             Viewport.Children.Add(new ModelVisual3D { Content = root });
         }
@@ -182,10 +198,17 @@ namespace BODA.CMS.Views
             float[] p = frame.JointPositionDeg;
             int axes = Math.Min(MaxAxes, frame.AxisCount);
 
+            if (!string.Equals(_offsetVendor, frame.VendorId, StringComparison.OrdinalIgnoreCase))
+            {
+                _offsetVendor = frame.VendorId;
+                _zeroOffsets = ZeroOffsetsByVendor.TryGetValue(frame.VendorId, out double[]? o) ? o : NoZeroOffsets;
+            }
+
+            // 클램프 없음 — 실기 각도는 그대로 보여야 자세가 맞는다(UR J2 는 -180°대도 정상 범위).
             for (int i = 0; i < MaxAxes; i++)
             {
                 if (i < axes)
-                    _rot[i].Angle = RestOffsets[i] + Math.Clamp(Pos(p, i), -JointLimits[i], JointLimits[i]);
+                    _rot[i].Angle = _zeroOffsets[i] + Pos(p, i);
                 _jointMarkers[i].Material = i >= axes ? MutedMaterial
                     : !learned[i] ? MutedMaterial
                     : worstZ[i] < 2 ? OkMaterial
