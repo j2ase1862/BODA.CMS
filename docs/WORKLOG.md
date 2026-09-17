@@ -26,7 +26,10 @@
 - UIA 메모: 소유 창(MessageBox·UpdateWindow)은 RootElement 자식 열거·`FindWindowW($null,…)`(빈 문자열로 전달됨)로 안 잡힘 → `[NullString]::Value` 로 호출해야 함. 버튼은 InvokePattern 대신 SetFocus+Space.
 
 ### v0.7.5 패키징·발행
-- 2단계가 들어간 첫 배포본. 현장 흐름: v0.7.4 앱이 v0.7.5 를 감지 → [지금 설치] 로 자동 설치.
+- `package.ps1 -Version 0.7.5` 재시도 없이 완료. app zip 의 `BODA.CMS.dll` 에 `UpdateInstallService`·`UpdateWindow` 포함 확인.
+  setup 396.5MB · app MSI 68.6MB · collector MSI 43.6MB · zip 81.5/51.5MB. `D:\CMS-Releases` 복사, dist 의 v0.7.4 삭제.
+- `gh release create v0.7.5` 자산 5종 → API `releases/latest` = v0.7.5, 앱 MSI digest 제공 확인.
+- **2단계가 들어간 첫 배포본.** 현장 흐름: v0.7.4 앱이 v0.7.5 를 감지 → [지금 설치] → UAC 승인 → 자동 설치·재실행. (v0.7.3 이하 앱은 알림 자체가 없으므로 이 MSI 를 수동 설치.)
 
 ---
 
