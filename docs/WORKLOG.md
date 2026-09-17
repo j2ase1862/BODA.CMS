@@ -4,6 +4,22 @@
 
 ---
 
+## 2026-09-17 (28) — v0.7.3 배포 패키징 (3D 로봇 뷰 기구학 수정 포함) + 인앱 업데이트 검토
+
+- `tools\package.ps1 -Version 0.7.3` — 3D 로봇 뷰 UR 기구학 수정(#27)이 들어간 첫 배포 패키지.
+  첫 시도는 `dist\stage\collector\Microsoft.AspNetCore.WebSockets.dll` 이 "다른 프로세스 사용 중"으로 zip 단계 실패
+  (CMS 프로세스 없음 — publish 직후 Defender 스캔의 일시 잠금으로 추정). 재실행으로 정상 완료.
+- 반영 확인: app zip 안 `BODA.CMS.dll`(2026-09-17 15:31) 메타데이터에 `UrZeroOffsets` 있음·구 `RestOffsets` 없음.
+- 산출물 5종 `D:\CMS-Releases` 복사, dist 의 v0.7.2 삭제(dist 는 작업 폴더 규칙).
+  setup 번들 396.5MB · app MSI 68.6MB · collector MSI 43.6MB · zip 81.4/51.5MB.
+- **인앱 업데이트(VMS 방식) CMS 적용 검토** — 결론: 가능. VMS 는 `GitHubUpdateService`(public 배포 리포 `releases/latest` 조회·버전 비교)
+  + `UpdateInstallService`(MSI 다운로드·SHA-256 검증·UAC 부트스트랩 스크립트로 msiexec 설치·서비스 복원·앱 재실행)의 2단 구조.
+  CMS 는 MSI(MajorUpgrade·UpgradeCode 고정)·`-p:Version` 어셈블리 버전·GitHub 원격까지 전제 조건을 이미 갖춤.
+  차이점: 배포 리포(`CMS-Releases`)가 없어 릴리스 발행 절차부터 필요, 앱 MSI 와 Collector MSI(서비스)가 분리돼 있어
+  "앱만 갱신 / 앱+감시 서버 갱신" 정책 결정 필요, PostgreSQL 동봉 setup 번들(396MB)은 인앱 업데이트 대상에서 제외(앱·collector MSI 만).
+
+---
+
 ## 2026-09-17 (27) — 3D 로봇 뷰 기구학을 UR 실물과 일치시킴
 
 ### 배경
