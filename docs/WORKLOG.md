@@ -4,6 +4,44 @@
 
 ---
 
+## 2026-09-21 (36) — 두산 J5 회전 방향 반전(실기 대조) + Collector MSI WIX1149 정리
+
+### 두산 J5 가 반대로 돌던 문제 (실기 대조)
+
+- **증상**: 두산 코봇을 연결해 보니 J5(손목 피치)가 실제로는 아래를 향하는데 3D 화면에서는 위를 향했다. 다른 축은 일치.
+- **원인**: 모델의 J5 회전축(+Z, 롤-피치-롤 손목)의 오른손 +방향이 두산 컨트롤러가 보고하는 각도의 +방향과 **반대**다.
+  각도 자체는 정상(펜던트 값 = DRFL/Modbus 보고값) — 그리는 쪽의 축 방향 문제이므로 드라이버는 건드리지 않았다.
+- **조치**: `RobotProfile` 에 **회전 방향 표** `JointSigns` 추가 → `θ = 영점 오프셋 + 방향 × q` (`ModelAngle`).
+  `doosan` 만 `{1,1,1,1,-1,1}`, 나머지 벤더·기본 프로필은 전부 +1.
+- **추측으로 채우지 않는다**: JAKA·Rokae·미등록 벤더의 부호는 실기 대조 전까지 +1 로 둔다. 검증 안 된 부호는 자세를 거꾸로 그린다
+  (손목 구조 `WristKind` 를 실기 확인 전까지 잠정으로 둔 것과 같은 원칙). 테스트가 이 상태를 고정한다.
+- 테스트 5건 추가(`RobotViewProfileTests`): 두산 J5 만 반전·나머지 축 그대로, UR 영점 오프셋 유지·반전 없음,
+  미등록 벤더 기본값, JAKA 미반전, 표 밖 축 처리. 전체 **114/114** 통과.
+- **남은 확인**: 이번에 보고된 것은 J5 뿐이다. 같은 실기에서 J1~J4·J6 방향도 한 번에 대조해 두면 좋다
+  (각 축을 +방향으로 조금씩 움직여 화면이 같은 쪽으로 도는지 — 다르면 해당 축 부호를 -1 로).
+
+### Collector MSI — WIX1149 경고 정리
+
+- v0.7.3 부터 나오던 `WIX1149`(Collector.wxs:50): 내장 `<ServiceConfig DelayedAutoStart="yes">` 가 쓰는 `MsiServiceConfig`
+  테이블을 Windows Installer SDK 가 "기대대로 동작하지 않는다" 고 적어 둔 것이 원인.
+- WiX 가 권장하는 대체재 `util:ServiceConfig` 에는 **DelayedAutoStart 속성이 없다**(실패 동작 전용). 그래서 지연 자동 시작을
+  `tools\install-service.ps1` 과 **같은 방법**으로 설정한다 — `sc.exe config BODA.CMS.Collector start= delayed-auto` 를
+  `InstallServices` 직후 실행하는 지연 사용자 지정 동작(`Return="ignore"`, 제거 시 미실행).
+- 실패해도 설치를 막지 않는다 — 그때는 일반 자동 시작으로 남고 재연결 백오프가 흡수한다(기존 MsiServiceConfig 가 조용히
+  안 먹던 경우와 같은 결과이되, 이제는 동작이 결정적이다).
+- 검증: Collector MSI 재빌드 **경고 0**. MSI 테이블 확인 — `CustomAction` 에 `SetCollectorDelayedAutoStart`(Type 3170 =
+  deferred·no-impersonate·return ignore), `InstallExecuteSequence` 5801(= InstallServices 5800 직후, StartServices 5900 앞),
+  `MsiServiceConfig` 테이블 자체가 사라짐. 실패 동작(util:ServiceConfig)은 그대로.
+- **실기 미확인**: 설치된 서비스의 지연 자동 시작 플래그는 다음 배포본을 실제로 설치해 `sc qc BODA.CMS.Collector` 의
+  `START_TYPE : 2 AUTO_START (DELAYED)` 로 확인해야 한다.
+
+### 버전 기준선
+
+- v0.7.6 발행을 반영해 `Directory.Build.props` 기준선을 **0.7.7** 로 올렸다(#35 에서 적은 "발행 직후 상향" 을 바로 적용).
+  이번 두 수정은 v0.7.7 에 실린다.
+
+---
+
 ## 2026-09-21 (35) — v0.7.6 패키징·릴리스 발행 (버전 기준선 정정 포함)
 
 ### 버전 기준선 정정

@@ -4,6 +4,6 @@
        (없으면 1.0.0 이 되어 개발 실행에서는 항상 '최신'으로 보인다).
        패키징은 tools\package.ps1 -Version 이 이 값을 덮어쓴다(미지정 시 이 값을 사용). 릴리스 발행 후 여기를 다음 버전으로 올린다. -->
   <PropertyGroup>
-    <Version>0.7.6</Version>
+    <Version>0.7.7</Version>
   </PropertyGroup>
 </Project>
