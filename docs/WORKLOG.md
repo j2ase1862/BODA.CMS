@@ -4,6 +4,36 @@
 
 ---
 
+## 2026-09-21 (35) — v0.7.6 패키징·릴리스 발행 (버전 기준선 정정 포함)
+
+### 버전 기준선 정정
+- v0.7.5 를 발행한 뒤 `Directory.Build.props` 기준선을 올리지 않아, #33·#34 의 UI 변경이 들어간 빌드가 스스로를
+  **v0.7.5 로 보고**하고 인앱 업데이트 체커도 '최신'으로 판정하는 상태였다. → `<Version>0.7.6</Version>` 으로 상향(커밋 `9d60511`).
+- 이 파일의 규칙("릴리스 발행 후 여기를 다음 버전으로 올린다")을 지키면 생기지 않는 일 — 발행 직후 상향을 절차에 붙일 것.
+
+### 패키징
+- `tools\package.ps1` (버전 미지정 → 기준선 0.7.6 사용). 산출물 5종:
+  collector-setup `.exe` 396.5 MB · app `.msi` 68.6 MB · collector `.msi` 43.6 MB · app `.zip` 81.5 MB · collector `.zip` 51.5 MB.
+- WiX 경고 `WIX1149`(Collector.wxs:50 ServiceConfig) 1건 — v0.7.3 이후 계속 나오던 기존 경고이고 이번 변경과 무관. 정리하려면
+  `WixToolset.Util.wixext` 의 ServiceConfig 로 교체해야 한다.
+- 각인 확인: zip 안 `BODA.CMS.exe` → `ProductVersion 0.7.6+9d605117…`(기준선 커밋 해시 일치), `FileVersion 0.7.6.0`.
+
+### 발행
+- `dist\*0.7.6*` 5종 → `D:\CMS-Releases` 복사 후 `gh release create v0.7.6 --repo j2ase1862/CMS-Releases --notes-file …`.
+  **자산은 0.7.6 파일 5개를 명시**해서 올렸다(`dist\*.msi` 식 와일드카드는 dist 에 남아 있는 0.7.5 산출물까지 올린다 — 주의).
+- 검증: API `releases/latest` = **v0.7.6**, 자산 5종 `state=uploaded`.
+  앱 MSI digest `sha256:304eaa91f88ab0f4869cb05afaf7c08b06db7967fa70cd60cea1270a4e115f92` = 로컬 파일 SHA-256 과 일치
+  → 2단계 자동 설치의 무결성 검증 경로가 성립한다(`GitHubUpdateService.NormalizeSha256Digest`).
+- 릴리스 노트: 3D 손목 구조 벤더 분기(#33) · 창 최대화·뷰 폭 맞춤(#34) · **이번 업그레이드는 [지금 설치] 자동**(v0.7.5·v0.7.6 양쪽에 2단계 코드) ·
+  Collector 기능 변경 없음(버전만 상향).
+
+### 검증·남은 것
+- 빌드 경고 0, 테스트 **109/109**.
+- **미확인**: v0.7.5 → v0.7.6 인앱 자동 설치 실기 확인. #31 에서 v0.7.4→v0.7.5 를 `BODA_CMS_VERSION` 가장으로 검증했지만,
+  이번엔 **실제 설치본끼리의 자동 경로**를 처음 확인할 수 있는 조합이다(dev PC 에 v0.7.5 가 설치돼 있음). 다음 세션에서 확인할 것.
+
+---
+
 ## 2026-09-17 (34) — 창 최대화 시작 + 로봇 뷰 폭 자동 맞춤
 
 - `MainWindow`: `WindowState=Maximized` — 시작 시 디스플레이에 최대화(복원 크기 1220×1020 유지).
