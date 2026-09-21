@@ -59,23 +59,30 @@ namespace BODA.CMS.Views
             RollPitchRoll,
         }
 
-        /// <summary>벤더별 3D 프로필: 영점 오프셋(θ = q + offset) + 손목 구조.</summary>
-        internal sealed record RobotProfile(double[] ZeroOffsets, WristKind Wrist);
+        /// <summary>벤더별 3D 프로필: 영점 오프셋·회전 방향(θ = offset + sign·q) + 손목 구조.</summary>
+        internal sealed record RobotProfile(double[] ZeroOffsets, WristKind Wrist, double[] JointSigns);
 
         // 영점(zero) 규약 — 모델은 θ=0 에서 각 링크가 앞 링크를 직진(로컬 +Y)하는 규약.
         // UR 은 q=0 에서 팔이 수평으로 뻗은 규약이라 J2·J4 에 +90°(URDF 대조). Doosan·JAKA 등 "0° = 수직 상향" 벤더는 0.
         // 시뮬레이터는 UR 규약·UR 손목으로 출력한다. 미등록 벤더는 롤-피치-롤·오프셋 0 (전통 6축이 다수).
         private static readonly double[] UrZeroOffsets = { 0, 90, 0, 90, 0, 0 };
         private static readonly double[] NoZeroOffsets = { 0, 0, 0, 0, 0, 0 };
-        private static readonly RobotProfile DefaultProfile = new(NoZeroOffsets, WristKind.RollPitchRoll);
+
+        // 회전 방향 — 컨트롤러가 보고하는 각도의 +방향이 모델 회전축의 오른손 +방향과 반대면 -1.
+        // 모델 축은 J2·J3·(롤-피치-롤)J5 가 +Z, J1·J4·J6 이 +Y 다. 값은 **실기 대조로만** 바꾼다(추측 금지).
+        private static readonly double[] NoFlips = { 1, 1, 1, 1, 1, 1 };
+        /// <summary>두산: J5(손목 피치)가 펜던트와 반대로 돌았다 — 실기 대조 2026-09-21. 나머지 축은 일치.</summary>
+        private static readonly double[] DoosanFlips = { 1, 1, 1, 1, -1, 1 };
+
+        private static readonly RobotProfile DefaultProfile = new(NoZeroOffsets, WristKind.RollPitchRoll, NoFlips);
         private static readonly Dictionary<string, RobotProfile> ProfilesByVendor = new(StringComparer.OrdinalIgnoreCase)
         {
-            ["ur"] = new(UrZeroOffsets, WristKind.OffsetPitch),
-            ["sim"] = new(UrZeroOffsets, WristKind.OffsetPitch),
-            ["doosan"] = new(NoZeroOffsets, WristKind.RollPitchRoll),
+            ["ur"] = new(UrZeroOffsets, WristKind.OffsetPitch, NoFlips),
+            ["sim"] = new(UrZeroOffsets, WristKind.OffsetPitch, NoFlips),
+            ["doosan"] = new(NoZeroOffsets, WristKind.RollPitchRoll, DoosanFlips),
             // JAKA Zu: UR 과 같은 평행 3축 + 오프셋 손목, 영점은 수직 상향으로 알려짐 — 실기 대조 전 잠정.
-            ["jaka"] = new(NoZeroOffsets, WristKind.OffsetPitch),
-            // Rokae xMate: 손목 구조·영점 미확인 — 기본(롤-피치-롤·0) 유지. 실기 확인 후 갱신.
+            ["jaka"] = new(NoZeroOffsets, WristKind.OffsetPitch, NoFlips),
+            // Rokae xMate: 손목 구조·영점 미확인 — 기본(롤-피치-롤·0·부호 +) 유지. 실기 확인 후 갱신.
         };
         /// <summary>검증용 손목 구조 강제: BODA_CMS_3D_WRIST=rpr | offset (시뮬레이터로 두산형 손목 확인 등).</summary>
         private const string WristOverrideEnv = "BODA_CMS_3D_WRIST";
@@ -264,6 +271,14 @@ namespace BODA.CMS.Views
         private static double Pos(float[]? arr, int i) =>
             arr is not null && i < arr.Length ? arr[i] : 0;
 
+        /// <summary>컨트롤러 각도 q(deg) → 모델 회전각 θ = 영점 오프셋 + 회전 방향 × q.</summary>
+        internal static double ModelAngle(RobotProfile profile, int axisIndex, double q)
+        {
+            double offset = axisIndex < profile.ZeroOffsets.Length ? profile.ZeroOffsets[axisIndex] : 0;
+            double sign = axisIndex < profile.JointSigns.Length ? profile.JointSigns[axisIndex] : 1;
+            return offset + sign * q;
+        }
+
         private void UpdateRobot(RobotTelemetryFrame frame, double[] worstZ, bool[] learned)
         {
             float[] p = frame.JointPositionDeg;
@@ -275,13 +290,11 @@ namespace BODA.CMS.Views
                 _profile = ResolveProfile(frame.VendorId);
                 if (_profile.Wrist != _builtWrist) BuildRobot(_profile.Wrist);
             }
-            double[] zeroOffsets = _profile.ZeroOffsets;
-
             // 클램프 없음 — 실기 각도는 그대로 보여야 자세가 맞는다(UR J2 는 -180°대도 정상 범위).
             for (int i = 0; i < MaxAxes; i++)
             {
                 if (i < axes)
-                    _rot[i].Angle = zeroOffsets[i] + Pos(p, i);
+                    _rot[i].Angle = ModelAngle(_profile, i, Pos(p, i));
                 _jointMarkers[i].Material = i >= axes ? MutedMaterial
                     : !learned[i] ? MutedMaterial
                     : worstZ[i] < 2 ? OkMaterial
