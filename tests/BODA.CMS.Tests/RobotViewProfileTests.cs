@@ -10,16 +10,14 @@ namespace BODA.CMS.Tests
     public class RobotViewProfileTests
     {
         [Fact]
-        public void Doosan_wrist_pitch_rotates_opposite_to_the_reported_angle()
+        public void Doosan_reports_angles_the_model_can_use_as_is()
         {
             RobotStatusView.RobotProfile doosan = RobotStatusView.ResolveProfile("doosan");
 
-            // J5(인덱스 4)만 반대 방향 — 펜던트가 +30° 면 모델도 같은 쪽으로 기울어야 하는데 축이 반대라 부호를 뒤집는다.
-            Assert.Equal(-30, RobotStatusView.ModelAngle(doosan, 4, 30));
-            Assert.Equal(45, RobotStatusView.ModelAngle(doosan, 4, -45));
-
-            // 나머지 축은 보고값 그대로 (영점 오프셋 0)
-            foreach (int axis in new[] { 0, 1, 2, 3, 5 })
+            // v0.7.7 은 J5 를 -1 로 뒤집었다가 실기 사진 대조에서 되돌렸다 — 모든 축이 보고값 그대로다.
+            Assert.All(doosan.JointSigns, s => Assert.Equal(1, s));
+            Assert.All(doosan.ZeroOffsets, o => Assert.Equal(0, o));
+            for (int axis = 0; axis < 6; axis++)
                 Assert.Equal(30, RobotStatusView.ModelAngle(doosan, axis, 30));
         }
 
