@@ -72,6 +72,25 @@ namespace BODA.CMS.Tests
         }
 
         [Fact]
+        public void Doosan_base_yaw_turns_the_arm_the_same_way_the_pendant_reports()
+        {
+            // 실기 확인(2026-09-21): J1 을 +90° 조그하니 3D 도 같은 방향으로 돌았다.
+            // 부호표뿐 아니라 J1 축 벡터까지 고정한다 — 축을 (0,-1,0) 으로 바꿔도 부호 테스트는 통과한다.
+            RobotStatusView.RobotProfile doosan = RobotStatusView.ResolveProfile("doosan");
+
+            double Azimuth(double q1)
+            {
+                double[] q = (double[])DoosanElbowDownQ.Clone();
+                q[0] = q1;
+                Posture p = Solve(doosan, q);
+                return Math.Atan2(p.Flange.X, p.Flange.Z) * 180 / Math.PI; // +Y 축 오른손 회전 = 방위각 증가
+            }
+
+            double turned = (Azimuth(90) - Azimuth(0) + 540) % 360 - 180; // (-180, 180] 로 정규화
+            Assert.InRange(turned, 89, 91);
+        }
+
+        [Fact]
         public void Ur_zero_offsets_lay_the_arm_out_horizontally()
         {
             // UR 은 q=0 에서 팔이 수평 — 영점 오프셋(J2·J4 +90°)이 살아 있는지 자세로 확인한다.
