@@ -46,8 +46,6 @@
                       Description="BODA.CMS 협동로봇 상태 수집·무인 감시 서비스 (웹 대시보드 포함)"
                       Type="ownProcess" Start="auto"
                       ErrorControl="normal" Account="LocalSystem" Vital="yes">
-        <!-- 부팅 직후 네트워크가 뜨기 전 기동 실패를 피한다 (install-service.ps1 의 delayed-auto 와 동일) -->
-        <ServiceConfig DelayedAutoStart="yes" OnInstall="yes" OnReinstall="yes" />
         <util:ServiceConfig FirstFailureActionType="restart"
                             SecondFailureActionType="restart"
                             ThirdFailureActionType="restart"
@@ -62,6 +60,19 @@
     <Component Id="AppSettings" Directory="INSTALLFOLDER" NeverOverwrite="yes" Permanent="yes" Bitness="always64">
       <File Id="AppSettingsJson" Source="$(var.MainDir)\appsettings.json" KeyPath="yes" />
     </Component>
+
+    <!-- 지연 자동 시작(delayed-auto): 부팅 직후 네트워크가 뜨기 전 기동 실패를 피한다.
+         내장 <ServiceConfig DelayedAutoStart> 는 Windows Installer SDK 가 "기대대로 동작하지 않는다" 고 적어 둔
+         MsiServiceConfig 테이블을 쓰고(WIX1149), 권장 대체재인 util:ServiceConfig 에는 이 속성이 없다.
+         그래서 tools\install-service.ps1 과 **같은 방법**(sc.exe config start= delayed-auto)으로 설정한다.
+         실패해도 설치를 막지 않는다(Return="ignore") — 그때는 일반 자동 시작으로 남고, 재연결 백오프가 흡수한다. -->
+    <CustomAction Id="SetCollectorDelayedAutoStart"
+                  Directory="INSTALLFOLDER"
+                  ExeCommand="&quot;[System64Folder]sc.exe&quot; config BODA.CMS.Collector start= delayed-auto"
+                  Execute="deferred" Impersonate="no" Return="ignore" />
+    <InstallExecuteSequence>
+      <Custom Action="SetCollectorDelayedAutoStart" After="InstallServices" Condition="NOT REMOVE" />
+    </InstallExecuteSequence>
 
     <Feature Id="Main" Level="1">
       <ComponentGroupRef Id="Payload" />
