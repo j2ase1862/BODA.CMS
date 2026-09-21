@@ -4,6 +4,25 @@
 
 ---
 
+## 2026-09-21 (37) — v0.7.7 패키징·릴리스 발행 (두산 J5 방향 수정 + MSI 지연 시작)
+
+- 담긴 변경: #36 의 두 가지 — 두산 J5 회전 방향 반전(실기 대조), Collector MSI 지연 자동 시작을 sc.exe 사용자 지정 동작으로.
+- 패키징 `tools\package.ps1` (기준선 0.7.7) — **WiX 경고 0**(WIX1149 가 로그에서 사라진 것을 확인). 산출물 5종 크기는 v0.7.6 과 동일.
+  각인 확인: `ProductVersion 0.7.7+742caa97…`(기준선/WORKLOG 커밋 해시 일치).
+- 발행: `gh release create v0.7.7 --repo j2ase1862/CMS-Releases` — 0.7.7 파일 5개를 **명시**해 업로드(와일드카드는 dist 에 남은 구버전까지 올린다).
+  검증: API `releases/latest` = **v0.7.7**, 자산 5종 `uploaded`,
+  앱 MSI digest `sha256:a3675440c1b6e2bbd027b11dbb6b319f30add3d7ac8793949ecd28bbd07f7776` = 로컬 SHA-256 일치.
+- 릴리스 노트: 두산 5축 방향 수정(각도 값은 이전에도 정상, 3D 자세만 반대였음) · 감시 서버 지연 자동 시작 방식 변경(**Collector 업그레이드 필요**,
+  확인은 `sc qc BODA.CMS.Collector` → `AUTO_START (DELAYED)`).
+- 기준선은 **0.7.8** 로 올렸다(발행 직후 상향).
+
+### 남은 확인 (실기)
+- 두산 실기에서 **J1~J4·J6 회전 방향** 대조 — 이번에 보고된 것은 J5 뿐이다. 다른 축도 반대면 `DoosanFlips` 의 해당 항목만 -1 로.
+- 설치본에서 `sc qc BODA.CMS.Collector` 의 `START_TYPE : 2 AUTO_START (DELAYED)` 확인.
+- v0.7.6 → v0.7.7 인앱 자동 설치 경로(#35 에서 미확인으로 남긴 항목) — 이번에도 양쪽에 2단계 코드가 있으므로 그대로 확인 가능.
+
+---
+
 ## 2026-09-21 (36) — 두산 J5 회전 방향 반전(실기 대조) + Collector MSI WIX1149 정리
 
 ### 두산 J5 가 반대로 돌던 문제 (실기 대조)
